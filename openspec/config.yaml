@@ -1,20 +1,42 @@
 schema: spec-driven
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+context: |
+  Tech stack: TypeScript, Node.js, Express, Prisma, Domain-Driven Design (DDD)
+  Architecture: Clean Architecture with Domain, Application, and Presentation layers
+  We use conventional commits
+  Domain: Define the business domain of this project
+  All code, comments, documentation, and technical artifacts must be in English
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+  Project documentation and standards are the single source of truth.
+  All artifact creation and implementation MUST follow the project's technical
+  context defined in docs/ and the AI workflows defined in ai-specs/.
+
+  Read and apply these documents when creating or implementing changes:
+
+  - docs/base-standards.md — core principles, TDD, language standards, and links to specialized standards
+  - docs/backend-standards.md — API, database, testing, security, and backend conventions
+  - docs/frontend-standards.md — frontend architecture, React, UI, and UX conventions
+  - docs/api-spec.yml — API contracts and endpoint definitions
+  - docs/data-model.md — domain entities and data model
+  - docs/documentation-standards.md — documentation structure and maintenance
+  - docs/development_guide.md — local development and project workflow
+  - docs/openspec-tasks-mandatory-steps.md — mandatory implementation task requirements
+
+  For implementation, adopt the relevant agent from ai-specs/agents/,
+  such as backend-developer.md or frontend-developer.md.
+
+  Use ai-specs/skills/ for workflow guidance when applicable.
+
+  The canonical source for custom agents and skills is ai-specs/.
+  Entries under .claude/ and .cursor/ may be symbolic links and should not
+  be edited as independent copies.
+
+rules:
+  _global:
+    - Before creating any artifact, read and apply docs/base-standards.md
+    - For backend-related artifacts, read docs/backend-standards.md and adopt guidelines from ai-specs/agents/backend-developer.md
+    - For frontend-related artifacts, read docs/frontend-standards.md and adopt guidelines from ai-specs/agents/frontend-developer.md
+    - Use docs/api-spec.yml and docs/data-model.md for API and data consistency in specifications and tasks
+    - Follow docs/documentation-standards.md when creating or modifying documentation
+    - Follow docs/openspec-tasks-mandatory-steps.md when creating implementation tasks
+    - Use the applicable workflow from ai-specs/skills/ when one exists
