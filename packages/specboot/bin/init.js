@@ -63,13 +63,18 @@ function main() {
     .filter(f => !f.startsWith('.'));
   const skills = fs.readdirSync(path.join(TEMPLATE_DIR, 'ai-specs', 'skills'))
     .filter(f => !f.startsWith('.'));
-
+  const commands = fs.readdirSync(path.join(TEMPLATE_DIR, 'ai-specs', 'commands'))
+    .filter(f => !f.startsWith('.'));
+    
   for (const tool of ['.claude', '.cursor']) {
     for (const agent of agents) {
       createSymlink(`${tool}/agents/${agent}`, `../../ai-specs/agents/${agent}`);
     }
     for (const skill of skills) {
       createSymlink(`${tool}/skills/${skill}`, `../../ai-specs/skills/${skill}`);
+    }
+    for (const command of commands) {
+      createSymlink(`${tool}/commands/${command}`, `../../ai-specs/commands/${command}`);
     }
   }
 
