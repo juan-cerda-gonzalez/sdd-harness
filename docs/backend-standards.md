@@ -17,6 +17,7 @@ alwaysApply: true
 - [Architecture Overview](#architecture-overview)
   - [Domain-Driven Design (DDD)](#domain-driven-design-ddd)
   - [Layered Architecture](#layered-architecture)
+  - [Controller and Endpoint Decision](#controller-and-endpoint-decision)
   - [Project Structure](#project-structure)
 - [Domain-Driven Design Principles](#domain-driven-design-principles)
   - [Entities](#entities)
@@ -90,7 +91,7 @@ This document outlines the best practices, conventions, and standards used in th
 ### Testing Framework
 - **Jest**: Testing framework with TypeScript support
 - **Coverage Threshold**: 90% for branches, functions, lines, and statements
-- **Test Location**: `__tests__` directories and `.test.ts` files
+- **Test Location**: All tests MUST be centralized under `backend/src/_test/`, mirroring the production source structure
 
 ### Development Tools
 - **ESLint**: Code linting
@@ -117,6 +118,39 @@ The backend follows a layered DDD architecture:
 - Routes define API endpoints
 - Controllers use services from Application layer
 
+#### Controller and Endpoint Decision
+
+Before implementing a new service, integration, use case, or internal capability, the agent MUST determine whether the functionality must be exposed through an HTTP endpoint.
+
+The agent MUST explicitly ask the user whether a controller and route are required when:
+
+- the change creates an internal service but no public endpoint is specified;
+- the functionality must be tested through Postman, curl, Swagger, or another HTTP client;
+- the requirements describe the implementation but do not define how it will be invoked;
+- an outbound integration is created without an existing application flow that consumes it.
+
+The agent MUST NOT infer that a controller is required or unnecessary.
+This clarification MUST be resolved during OpenSpec proposal/design generation, before implementation tasks are finalized.
+
+The clarification must determine:
+
+- whether an HTTP endpoint is required;
+- whether the endpoint is permanent or development-only;
+- the HTTP method and route;
+- the expected request and response contract;
+- whether authentication is required.
+
+If a controller is required, the implementation MUST include:
+
+- a controller under `src/presentation/controllers/`;
+- a route under `src/presentation/routes/`;
+- application-layer service invocation;
+- validation and error handling;
+- controller tests under `src/_test/presentation/controllers/`;
+- route registration in the application composition root.
+
+If the decision remains unresolved, it MUST be recorded as an open question in the OpenSpec design and implementation of the presentation layer must not be inferred.
+
 **Application Layer** (`src/application/`)
 - Services contain business logic and orchestration
 - Validator handles input validation
@@ -131,36 +165,51 @@ The backend follows a layered DDD architecture:
 - Prisma ORM handles database operations
 - Repository implementations (via Prisma) satisfy domain interfaces
 
+
 ### Project Structure
 
-```
+```text
 backend/
 ├── src/
 │   ├── domain/
-│   │   ├── models/          # Domain entities
-│   │   └── repositories/    # Repository interfaces
+│   │   ├── models/                  # Domain entities
+│   │   └── repositories/            # Repository interfaces
 │   ├── application/
-│   │   ├── services/        # Business logic services
-│   │   └── validator.ts     # Input validation
+│   │   ├── services/                # Business logic services
+│   │   └── validator.ts             # Input validation
 │   ├── presentation/
-│   │   └── controllers/     # HTTP request handlers
+│   │   ├── controllers/             # HTTP request handlers
+│   │   └── routes/                  # Express route definitions
 │   ├── infrastructure/
-│   │   ├── logger.ts        # Logging utilities
-│   │   └── prismaClient.ts  # Prisma client setup
-│   ├── routes/              # Express route definitions
-│   ├── middleware/          # Express middleware
-│   ├── index.ts             # Application entry point
-│   └── lambda.ts            # AWS Lambda handler
+│   │   ├── auth/                    # Authentication clients and cache
+│   │   ├── config/                  # Environment and configuration
+│   │   ├── http/                    # Shared HTTP clients
+│   │   ├── logger.ts                # Logging utilities
+│   │   └── prismaClient.ts          # Prisma client setup, when applicable
+│   ├── middleware/                  # Express and outbound middleware
+│   ├── _test/                       # Centralized test location
+│   │   ├── application/
+│   │   │   └── services/
+│   │   ├── domain/
+│   │   ├── presentation/
+│   │   │   └── controllers/
+│   │   ├── infrastructure/
+│   │   │   ├── auth/
+│   │   │   ├── config/
+│   │   │   └── http/
+│   │   ├── middleware/
+│   │   ├── fixtures/                # Reusable test data
+│   │   ├── builders/                # Test data builders
+│   │   └── mocks/                   # Shared mocks
+│   ├── index.ts                     # Application entry point
+│   └── lambda.ts                    # AWS Lambda handler, when applicable
 ├── prisma/
-│   ├── schema.prisma        # Database schema
-│   └── migrations/          # Database migrations
-├── test-utils/
-│   ├── builders/            # Test data builders
-│   └── mocks/               # Mock helpers
-├── jest.config.js           # Jest configuration
-├── tsconfig.json            # TypeScript configuration
-├── serverless.yml           # Serverless Framework config
-└── package.json             # Dependencies and scripts
+│   ├── schema.prisma                # Database schema, when applicable
+│   └── migrations/                  # Database migrations
+├── jest.config.js                   # Jest configuration
+├── tsconfig.json                    # TypeScript configuration
+├── serverless.yml                   # Serverless Framework config, when applicable
+└── package.json                     # Dependencies and scripts
 ```
 
 ## Domain-Driven Design Principles
@@ -886,11 +935,44 @@ export class CandidateRepository implements ICandidateRepository {
 The project has strict requirements for code quality and maintainability. These are the unit testing standards and best practices that must be applied. 
 
 ### Test File Structure
-- Use descriptive test file names: `[componentName].test.ts`
-- Place test files alongside the source code they test
-- Use Jest as the testing framework with TypeScript support
+
+- Use Jest as the testing framework with TypeScript support.
+- All unit-test-related files MUST be centralized under `backend/src/_test/`.
+- Unit tests MUST NOT be placed beside production source files.
+- Distributed `__tests__` directories are not allowed.
+- Test files MUST use the naming convention `[componentName].test.ts`.
+- The `_test` directory MUST mirror the production source structure.
 - Maintain 90% coverage threshold for branches, functions, lines, and statements
 
+
+Required structure:
+
+```text
+backend/src/
+├── application/
+├── domain/
+├── infrastructure/
+├── middleware/
+├── presentation/
+└── _test/
+    ├── application/
+    │   └── services/
+    ├── domain/
+    ├── infrastructure/
+    │   └── auth/
+    ├── middleware/
+    └── presentation/
+        └── controllers/
+```
+
+### Test File Example
+
+- src/application/services/tokenService.ts
+- src/_test/application/services/tokenService.test.ts
+- src/infrastructure/auth/tokenCache.ts
+- src/_test/infrastructure/auth/tokenCache.test.ts
+- src/presentation/controllers/authController.ts
+- src/_test/presentation/controllers/authController.test.ts
 
 ### Test Organization Pattern
 Template:
