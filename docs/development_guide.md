@@ -38,7 +38,21 @@ NODE_ENV=development
 
 # Prisma Database URL
 DATABASE_URL="postgresql://LTIdbUser:D1ymf8wyQEGthFR1E9xhCq@localhost:5432/LTIdb"
+
+# Azure B2C service-to-service authentication (OAuth 2.0 Client Credentials)
+AZURE_B2C_TOKEN_URL=
+AZURE_B2C_CLIENT_ID=
+AZURE_B2C_CLIENT_SECRET=
+AZURE_B2C_SCOPE=
+AZURE_B2C_RESOURCE=
+AZURE_B2C_TOKEN_CACHE_TTL_SECONDS=600
+AZURE_B2C_TOKEN_REQUEST_TIMEOUT_MS=5000
+
+# Dev-only diagnostics endpoint gate (GET /internal/auth/token-status) — never enable in production
+ENABLE_DIAGNOSTICS=
 ```
+
+`AZURE_B2C_CLIENT_SECRET` must be sourced from the local secrets manager / Key Vault in every real environment — never commit a real value to `.env` or paste it into a ticket. `AZURE_B2C_SCOPE` and `AZURE_B2C_RESOURCE` are both mandatory: the application fails to start if either is missing. The exact request payload (whether `resource` is actually required alongside `scope`) is still pending validation against the ticket's Postman collection.
 
 **Frontend Environment** (`frontend/.env`):
 ```env

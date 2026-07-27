@@ -1307,4 +1307,28 @@ export const handler = async (
 };
 ```
 
+## Outbound Service Authentication (Azure B2C)
+
+The backend authenticates outbound calls to external services using an OAuth 2.0 Client Credentials flow against Azure B2C. This mechanism is implemented once and must be reused by any future outbound integration instead of duplicating token acquisition logic.
+
+**Components:**
+- `ITokenProvider` (`src/domain/repositories/ITokenProvider.ts`) — domain interface exposing `getAccessToken(): Promise<string>`.
+- `azureB2CTokenClient` (`src/infrastructure/auth/azureB2CTokenClient.ts`) — requests a token from `AZURE_B2C_TOKEN_URL` via `POST` (`application/x-www-form-urlencoded`), sending `grant_type`, `client_id`, `client_secret`, `scope`, and `resource`. Retries a bounded number of times (1–2) on transient network errors only; authentication/validation failures (4xx/5xx) are not retried. The exact parameter set (`scope` alone vs. `scope` + `resource`) is still pending validation against the ticket's Postman collection.
+- `tokenCache` (`src/infrastructure/auth/tokenCache.ts`) — in-memory TTL cache (default 10 minutes, `AZURE_B2C_TOKEN_CACHE_TTL_SECONDS`). Never stores a failed or empty-token response. Also exposes remaining TTL for diagnostics.
+- `tokenService` (`src/application/services/tokenService.ts`) — implements `ITokenProvider`; returns the cached token when valid, otherwise acquires and caches a new one. Uses single-flight so concurrent callers during a cache miss share one upstream request. Also exposes `getStatus()` (non-sensitive cache metadata) and `forceRefreshAccessToken()` (bypasses the cache) for diagnostics.
+- `outboundAuthInterceptor` (`src/middleware/outboundAuthInterceptor.ts`) — attaches `Authorization: Bearer <token>` to the microservice's **shared outbound HTTP client**, by default, for every outbound call.
+
+**Default-on, explicit exceptions.** Every outbound integration is authenticated by default through the shared client (`createOutboundHttpClient`). An integration that must not carry this token (e.g. a different auth scheme) has to declare that explicitly — either via the dedicated unauthenticated client (`createUnauthenticatedHttpClient`) or an explicit `skipAuth: true` request flag. The interceptor never infers an exception implicitly.
+
+**Security:** the raw access token and `client_secret` are never logged, at any level; only metadata (cache hit/miss, status code, expiry) is logged. Credentials are sourced from environment variables / the secrets manager only.
+
+### Dev-Only Diagnostic Endpoint
+
+`GET /internal/auth/token-status` (`src/presentation/controllers/tokenStatusController.ts`, `src/presentation/routes/tokenStatusRoutes.ts`) exposes non-sensitive Azure B2C token/cache status for manual verification, since this capability has no other consumer yet.
+
+- **Response:** `{ "cached": boolean, "expiresInSeconds"?: number }` — never the token, secret, scope, or resource value.
+- **`?forceRefresh=true`:** bypasses the cache and requests a fresh token, returning the same shape. Failures respond `502` with a generic message, never the upstream body.
+- **Registration gate:** only registered when `NODE_ENV !== 'production'` (or `ENABLE_DIAGNOSTICS=true` explicitly overrides this). It must never be reachable in production. See `areDiagnosticsEnabled()` in `tokenStatusRoutes.ts`.
+- This endpoint is a temporary verification aid, not a permanent API — remove or replace it once a real outbound integration consumes `tokenService` directly.
+
 This document serves as the foundation for maintaining code quality and consistency across the LTI backend application. All team members should follow these practices to ensure a maintainable, scalable, and testable codebase.
