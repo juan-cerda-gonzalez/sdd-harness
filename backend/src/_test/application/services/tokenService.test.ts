@@ -181,6 +181,27 @@ describe('TokenService - getAccessToken', () => {
     });
   });
 
+  describe('should_log_and_propagate_configuration_errors_raised_while_loading_config', () => {
+    it('should log the acquisition failure when loadConfig throws before any upstream call is made', async () => {
+      // Arrange
+      const cache = new TokenCache();
+      const logger = new Logger();
+      jest.spyOn(logger, 'info').mockImplementation(() => undefined);
+      jest.spyOn(logger, 'error').mockImplementation(() => undefined);
+      const loadConfig = jest.fn(() => {
+        throw new Error('Environment variable AZURE_B2C_TOKEN_REQUEST_TIMEOUT_MS must be a positive integer, got: 0');
+      });
+      const service = new TokenService(cache, logger, loadConfig);
+
+      // Act & Assert
+      await expect(service.getAccessToken()).rejects.toThrow(
+        'Environment variable AZURE_B2C_TOKEN_REQUEST_TIMEOUT_MS must be a positive integer, got: 0'
+      );
+      expect(logger.error).toHaveBeenCalledWith('Azure B2C token acquisition failed', { statusCode: undefined });
+      expect(mockedFetchAzureB2CToken).not.toHaveBeenCalled();
+    });
+  });
+
   describe('should_not_log_token_secret_scope_or_resource_values', () => {
     it('should never include the raw token or secret in logger calls', async () => {
       // Arrange

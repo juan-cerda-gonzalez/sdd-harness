@@ -1,4 +1,3 @@
-import { Logger } from './../logger';
 import axios, { AxiosError } from 'axios';
 import { AzureB2CConfig } from '../config/azureB2CConfig';
 
@@ -27,6 +26,7 @@ interface AzureB2CTokenResponse {
 }
 
 const MAX_TRANSIENT_RETRIES = 2;
+const RETRY_BASE_DELAY_MS = 200;
 
 function isTransientNetworkError(error: unknown): boolean {
   if (!axios.isAxiosError(error)) {
@@ -34,6 +34,17 @@ function isTransientNetworkError(error: unknown): boolean {
   }
   // No response means the request never reached the server (timeout, DNS, connection reset).
   return error.response === undefined;
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+/** Bounded exponential backoff: 200ms, 400ms, ... capped by MAX_TRANSIENT_RETRIES attempts. */
+function retryDelayMs(attempt: number): number {
+  return RETRY_BASE_DELAY_MS * 2 ** attempt;
 }
 
 async function requestToken(config: AzureB2CConfig): Promise<string> {
@@ -73,6 +84,7 @@ export async function fetchAzureB2CToken(config: AzureB2CConfig): Promise<string
       if (!isTransientNetworkError(error) || attempt === MAX_TRANSIENT_RETRIES) {
         break;
       }
+      await delay(retryDelayMs(attempt));
     }
   }
 

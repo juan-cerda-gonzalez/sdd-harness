@@ -8,10 +8,11 @@ export function createTokenStatusRouter(tokenService: TokenService): Router {
   return router;
 }
 
-/** True outside production, or when diagnostics are explicitly enabled. */
+/**
+ * True only when diagnostics are explicitly enabled via ENABLE_DIAGNOSTICS=true
+ * AND the environment is not production. Production always blocks this route,
+ * regardless of the flag, since it exposes internal token-cache diagnostics.
+ */
 export function areDiagnosticsEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
-  if (env.ENABLE_DIAGNOSTICS === 'true') {
-    return true;
-  }
-  return env.NODE_ENV !== 'production';
+  return env.ENABLE_DIAGNOSTICS === 'true' && env.NODE_ENV !== 'production';
 }

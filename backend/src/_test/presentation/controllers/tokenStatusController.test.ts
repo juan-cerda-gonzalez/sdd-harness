@@ -3,6 +3,7 @@ import request from 'supertest';
 import { createTokenStatusHandler } from '../../../presentation/controllers/tokenStatusController';
 import { createTokenStatusRouter, areDiagnosticsEnabled } from '../../../presentation/routes/tokenStatusRoutes';
 import { TokenService, TokenStatus } from '../../../application/services/tokenService';
+import { TokenRequestError } from '../../../infrastructure/auth/azureB2CTokenClient';
 
 function buildApp(tokenService: TokenService) {
   const app = express();
@@ -90,11 +91,11 @@ describe('tokenStatusController - GET /internal/auth/token-status', () => {
     });
   });
 
-  describe('should_map_forced_refresh_failure_to_error_response_without_leaking_details', () => {
+  describe('should_map_upstream_failure_to_502_without_leaking_details', () => {
     it('should respond 502 without the token, secret, or raw upstream body', async () => {
       // Arrange
       const tokenService = fakeTokenService({
-        forceRefreshAccessToken: jest.fn().mockRejectedValue(new Error('Azure B2C token request failed'))
+        forceRefreshAccessToken: jest.fn().mockRejectedValue(new TokenRequestError('Azure B2C token request failed', 500))
       });
       const app = buildApp(tokenService);
 
@@ -106,22 +107,49 @@ describe('tokenStatusController - GET /internal/auth/token-status', () => {
       expect(response.body).toEqual({ error: 'Failed to acquire Azure B2C access token' });
     });
   });
+
+  describe('should_map_configuration_failure_to_500_without_leaking_details', () => {
+    it('should respond 500 with a generic message and never echo the raw config error', async () => {
+      // Arrange
+      const tokenService = fakeTokenService({
+        forceRefreshAccessToken: jest.fn().mockRejectedValue(
+          new Error('Environment variable AZURE_B2C_TOKEN_REQUEST_TIMEOUT_MS must be a positive integer, got: 0')
+        )
+      });
+      const app = buildApp(tokenService);
+
+      // Act
+      const response = await request(app).get('/internal/auth/token-status?forceRefresh=true');
+
+      // Assert
+      expect(response.status).toBe(500);
+      expect(response.body).toEqual({ error: 'Azure B2C token service is misconfigured' });
+      expect(JSON.stringify(response.body)).not.toContain('AZURE_B2C_TOKEN_REQUEST_TIMEOUT_MS');
+    });
+  });
 });
 
 describe('tokenStatusRoutes - areDiagnosticsEnabled', () => {
-  describe('should_enable_diagnostics_when_node_env_is_not_production', () => {
-    it('should return true for a non-production NODE_ENV', () => {
+  describe('should_require_explicit_flag_even_outside_production', () => {
+    it('should return false for a non-production NODE_ENV when ENABLE_DIAGNOSTICS is not set', () => {
       // Act & Assert
-      expect(areDiagnosticsEnabled({ NODE_ENV: 'development' })).toBe(true);
-      expect(areDiagnosticsEnabled({ NODE_ENV: 'test' })).toBe(true);
-      expect(areDiagnosticsEnabled({})).toBe(true);
+      expect(areDiagnosticsEnabled({ NODE_ENV: 'development' })).toBe(false);
+      expect(areDiagnosticsEnabled({ NODE_ENV: 'test' })).toBe(false);
+      expect(areDiagnosticsEnabled({})).toBe(false);
+    });
+
+    it('should return true for a non-production NODE_ENV when ENABLE_DIAGNOSTICS=true', () => {
+      // Act & Assert
+      expect(areDiagnosticsEnabled({ NODE_ENV: 'development', ENABLE_DIAGNOSTICS: 'true' })).toBe(true);
+      expect(areDiagnosticsEnabled({ ENABLE_DIAGNOSTICS: 'true' })).toBe(true);
     });
   });
 
   describe('should_not_register_token_status_route_when_node_env_is_production', () => {
-    it('should return false for NODE_ENV=production without an explicit override', () => {
+    it('should return false for NODE_ENV=production even with the flag set', () => {
       // Act & Assert
       expect(areDiagnosticsEnabled({ NODE_ENV: 'production' })).toBe(false);
+      expect(areDiagnosticsEnabled({ NODE_ENV: 'production', ENABLE_DIAGNOSTICS: 'true' })).toBe(false);
     });
 
     it('should not mount the route on the express app, resulting in a 404', async () => {
@@ -140,14 +168,10 @@ describe('tokenStatusRoutes - areDiagnosticsEnabled', () => {
     });
   });
 
-  describe('should_enable_diagnostics_when_explicit_flag_overrides_production', () => {
-    it('should return true when ENABLE_DIAGNOSTICS=true even in production', () => {
+  describe('should_stay_disabled_when_flag_has_a_non_true_value', () => {
+    it('should ignore a non-"true" ENABLE_DIAGNOSTICS value', () => {
       // Act & Assert
-      expect(areDiagnosticsEnabled({ NODE_ENV: 'production', ENABLE_DIAGNOSTICS: 'true' })).toBe(true);
-    });
-
-    it('should ignore a non-"true" ENABLE_DIAGNOSTICS value and stay disabled in production', () => {
-      // Act & Assert
+      expect(areDiagnosticsEnabled({ NODE_ENV: 'development', ENABLE_DIAGNOSTICS: 'false' })).toBe(false);
       expect(areDiagnosticsEnabled({ NODE_ENV: 'production', ENABLE_DIAGNOSTICS: 'false' })).toBe(false);
     });
   });
@@ -159,9 +183,9 @@ describe('tokenStatusRoutes - areDiagnosticsEnabled', () => {
       process.env = originalEnv;
     });
 
-    it('should read NODE_ENV from process.env by default', () => {
+    it('should read NODE_ENV and ENABLE_DIAGNOSTICS from process.env by default', () => {
       // Arrange
-      process.env = { ...originalEnv, NODE_ENV: 'production' };
+      process.env = { ...originalEnv, NODE_ENV: 'production', ENABLE_DIAGNOSTICS: 'true' };
 
       // Act & Assert
       expect(areDiagnosticsEnabled()).toBe(false);

@@ -70,4 +70,59 @@ describe('azureB2CConfig - getAzureB2CConfig', () => {
       expect(() => getAzureB2CConfig()).toThrow(`Missing required environment variable: ${varName}`);
     });
   });
+
+  describe.each([
+    ['AZURE_B2C_TOKEN_CACHE_TTL_SECONDS'],
+    ['AZURE_B2C_TOKEN_REQUEST_TIMEOUT_MS']
+  ])('should_validate_%s_when_provided', (varName) => {
+    it('should throw when the value is zero', () => {
+      // Arrange
+      process.env[varName] = '0';
+
+      // Act & Assert
+      expect(() => getAzureB2CConfig()).toThrow(
+        `Environment variable ${varName} must be a positive integer, got: 0`
+      );
+    });
+
+    it('should throw when the value is negative', () => {
+      // Arrange
+      process.env[varName] = '-100';
+
+      // Act & Assert
+      expect(() => getAzureB2CConfig()).toThrow(
+        `Environment variable ${varName} must be a positive integer, got: -100`
+      );
+    });
+
+    it('should throw when the value is non-numeric', () => {
+      // Arrange
+      process.env[varName] = 'not-a-number';
+
+      // Act & Assert
+      expect(() => getAzureB2CConfig()).toThrow(
+        `Environment variable ${varName} must be a positive integer, got: not-a-number`
+      );
+    });
+
+    it('should throw when the value is non-finite', () => {
+      // Arrange
+      process.env[varName] = 'Infinity';
+
+      // Act & Assert
+      expect(() => getAzureB2CConfig()).toThrow(
+        `Environment variable ${varName} must be a positive integer, got: Infinity`
+      );
+    });
+
+    it('should throw when the value is a non-integer decimal', () => {
+      // Arrange
+      process.env[varName] = '10.5';
+
+      // Act & Assert
+      expect(() => getAzureB2CConfig()).toThrow(
+        `Environment variable ${varName} must be a positive integer, got: 10.5`
+      );
+    });
+  });
 });

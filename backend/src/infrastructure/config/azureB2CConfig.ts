@@ -19,6 +19,14 @@ const REQUIRED_ENV_VARS = [
 const DEFAULT_TOKEN_CACHE_TTL_SECONDS = 600;
 const DEFAULT_TOKEN_REQUEST_TIMEOUT_MS = 5000;
 
+function parsePositiveInt(varName: string, rawValue: string): number {
+  const parsed = Number(rawValue);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`Environment variable ${varName} must be a positive integer, got: ${rawValue}`);
+  }
+  return parsed;
+}
+
 export function getAzureB2CConfig(): AzureB2CConfig {
   for (const varName of REQUIRED_ENV_VARS) {
     if (!process.env[varName]) {
@@ -26,17 +34,20 @@ export function getAzureB2CConfig(): AzureB2CConfig {
     }
   }
 
+  const rawTokenCacheTtlSeconds = process.env.AZURE_B2C_TOKEN_CACHE_TTL_SECONDS;
+  const rawTokenRequestTimeoutMs = process.env.AZURE_B2C_TOKEN_REQUEST_TIMEOUT_MS;
+
   return {
     tokenUrl: process.env.AZURE_B2C_TOKEN_URL as string,
     clientId: process.env.AZURE_B2C_CLIENT_ID as string,
     clientSecret: process.env.AZURE_B2C_CLIENT_SECRET as string,
     scope: process.env.AZURE_B2C_SCOPE as string,
     resource: process.env.AZURE_B2C_RESOURCE as string,
-    tokenCacheTtlSeconds: process.env.AZURE_B2C_TOKEN_CACHE_TTL_SECONDS
-      ? Number(process.env.AZURE_B2C_TOKEN_CACHE_TTL_SECONDS)
+    tokenCacheTtlSeconds: rawTokenCacheTtlSeconds
+      ? parsePositiveInt('AZURE_B2C_TOKEN_CACHE_TTL_SECONDS', rawTokenCacheTtlSeconds)
       : DEFAULT_TOKEN_CACHE_TTL_SECONDS,
-    tokenRequestTimeoutMs: process.env.AZURE_B2C_TOKEN_REQUEST_TIMEOUT_MS
-      ? Number(process.env.AZURE_B2C_TOKEN_REQUEST_TIMEOUT_MS)
+    tokenRequestTimeoutMs: rawTokenRequestTimeoutMs
+      ? parsePositiveInt('AZURE_B2C_TOKEN_REQUEST_TIMEOUT_MS', rawTokenRequestTimeoutMs)
       : DEFAULT_TOKEN_REQUEST_TIMEOUT_MS
   };
 }

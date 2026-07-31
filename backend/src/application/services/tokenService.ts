@@ -58,9 +58,8 @@ export class TokenService implements ITokenProvider {
   }
 
   private async acquireAndCacheToken(): Promise<string> {
-    const config = this.loadConfig();
-
     try {
+      const config = this.loadConfig();
       const token = await fetchAzureB2CToken(config);
       this.cache.set(CACHE_KEY, token, config.tokenCacheTtlSeconds);
       this.logger.info('Azure B2C token acquisition succeeded');

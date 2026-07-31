@@ -100,6 +100,16 @@ describe('azureB2CTokenClient - fetchAzureB2CToken', () => {
       await expect(fetchAzureB2CToken(buildConfig())).rejects.toThrow(TokenRequestError);
       expect(mockedAxios.post).toHaveBeenCalledTimes(1);
     });
+
+    it('should preserve the upstream HTTP status for diagnostics', async () => {
+      // Arrange
+      mockedAxios.post.mockResolvedValue({ status: 200, data: {} });
+
+      // Act & Assert
+      const error = await fetchAzureB2CToken(buildConfig()).catch((e) => e);
+      expect(error).toBeInstanceOf(TokenRequestError);
+      expect((error as TokenRequestError).statusCode).toBe(200);
+    });
   });
 
   describe('should_not_retry_when_token_endpoint_returns_error_status', () => {
@@ -136,6 +146,53 @@ describe('azureB2CTokenClient - fetchAzureB2CToken', () => {
 
       // Assert
       expect(token).toBe('token-after-retry');
+      expect(mockedAxios.post).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('should_apply_bounded_backoff_delay_between_transient_retries', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('should wait with exponential backoff before each retry and stop after the bound', async () => {
+      // Arrange
+      mockedAxios.post.mockRejectedValue(networkError());
+
+      // Act
+      const resultPromise = fetchAzureB2CToken(buildConfig());
+      const assertion = expect(resultPromise).rejects.toThrow(TokenRequestError);
+
+      // Assert: no retry has happened yet until the first backoff delay elapses.
+      await Promise.resolve();
+      expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+
+      await jest.advanceTimersByTimeAsync(200);
+      expect(mockedAxios.post).toHaveBeenCalledTimes(2);
+
+      await jest.advanceTimersByTimeAsync(400);
+      expect(mockedAxios.post).toHaveBeenCalledTimes(3);
+
+      await assertion;
+    });
+
+    it('should not delay before returning once a retry succeeds', async () => {
+      // Arrange
+      mockedAxios.post
+        .mockRejectedValueOnce(networkError())
+        .mockResolvedValueOnce({ status: 200, data: { access_token: 'token-after-backoff' } });
+
+      // Act
+      const resultPromise = fetchAzureB2CToken(buildConfig());
+      await jest.advanceTimersByTimeAsync(200);
+      const token = await resultPromise;
+
+      // Assert
+      expect(token).toBe('token-after-backoff');
       expect(mockedAxios.post).toHaveBeenCalledTimes(2);
     });
   });
