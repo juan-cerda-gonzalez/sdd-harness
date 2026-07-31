@@ -90,7 +90,7 @@ This document outlines the best practices, conventions, and standards used in th
 ### Testing Framework
 - **Jest**: Testing framework with TypeScript support
 - **Coverage Threshold**: 90% for branches, functions, lines, and statements
-- **Test Location**: `__tests__` directories and `.test.ts` files
+- **Test Location**: `backend/src/_test/`, mirroring the production source structure
 
 ### Development Tools
 - **ESLint**: Code linting
@@ -715,6 +715,26 @@ try {
     next(error);
 }
 ```
+### External Service Response Validation
+
+- A successful HTTP status does not guarantee a valid business response.
+- All responses from external services must validate required fields before being accepted.
+- HTTP 2xx responses with missing, empty, or malformed required fields must be treated as failures.
+- Application errors must not expose a successful HTTP status code as their own failure status.
+- The upstream HTTP status may be preserved separately for diagnostics.
+- External-service errors must distinguish between:
+  - transport failures;
+  - timeout failures;
+  - upstream non-success HTTP responses;
+  - successful HTTP responses with invalid payloads.
+- Tests must cover successful HTTP responses with missing, empty, or malformed required fields.
+- Application error status and upstream HTTP status must be modeled separately.
+- A malformed HTTP 2xx response must use a non-success application status, such as `502 Bad Gateway`.
+- The original upstream HTTP status should be preserved in a separate field such as `upstreamStatusCode`.
+- Logs for external-service failures should include both:
+  - `statusCode`: application-level failure status;
+  - `upstreamStatusCode`: original HTTP status returned by the external service.
+- Do not reuse an upstream successful status such as `200` as the application error status.
 
 ### Validation Patterns
 
@@ -886,10 +906,14 @@ export class CandidateRepository implements ICandidateRepository {
 The project has strict requirements for code quality and maintainability. These are the unit testing standards and best practices that must be applied. 
 
 ### Test File Structure
-- Use descriptive test file names: `[componentName].test.ts`
-- Place test files alongside the source code they test
-- Use Jest as the testing framework with TypeScript support
-- Maintain 90% coverage threshold for branches, functions, lines, and statements
+
+- Use descriptive test file names: `[componentName].test.ts`.
+- All unit test files must be centralized under `backend/src/_test/`.
+- The structure under `src/_test/` must mirror the production structure under `src/`.
+- Do not place tests beside production files.
+- Do not create distributed `__tests__` directories.
+- Use Jest as the testing framework with TypeScript support.
+- Maintain a 90% coverage threshold for branches, functions, lines, and statements.
 
 
 ### Test Organization Pattern
@@ -1047,6 +1071,14 @@ Assertion pattern:
 - Use type assertions sparingly and with proper justification
 - Leverage TypeScript's type system for better test reliability
 
+#### Unused Code
+
+- Unused imports, variables, parameters, private members, and dead code are not allowed.
+- TypeScript build configurations must enable `noUnusedLocals`.
+- TypeScript build configurations should enable `noUnusedParameters`.
+- Generated code must compile without unused-code errors.
+- Imports must only be added when they are actually used by the module.
+
 #### Documentation
 - Write clear, descriptive test names that explain the scenario
 - Add comments for complex test setups
@@ -1133,6 +1165,25 @@ const [candidates, positions] = await Promise.all([
 - **Never Commit Secrets**: Never commit `.env` files or secrets to version control
 - **Use Environment Variables**: Use environment variables for configuration
 - **Validate Environment**: Validate required environment variables at startup
+- Every environment variable must be validated at application startup.
+- Numeric environment variables must be explicitly parsed and validated.
+- Numeric values must be finite.
+- Values that represent durations, retries, limits, or timeouts must be greater than zero unless zero has an explicitly documented meaning.
+- Do not use `Number(value)` without validating the result with `Number.isFinite(...)`.
+- Invalid configuration must fail fast with a clear error message.
+- Default values must be documented in `.env.example`.
+
+Tests must cover:
+
+- missing values;
+- valid overrides;
+- non-numeric values;
+- zero;
+- negative values;
+- non-finite values when applicable.
+- decimal values when only integers are allowed.
+
+A validation rule must not be considered complete until all mandatory invalid-value cases are covered by unit tests.
 
 ```typescript
 // Validate required environment variables
@@ -1193,6 +1244,26 @@ npx prisma db seed       # Seed database
 - **TypeScript Compilation**: Ensure TypeScript compiles without errors
 - **All Tests Passing**: Ensure all tests pass before deployment
 - **Code Review**: Review code for adherence to standards
+
+### Implementation Quality Gate
+
+Before an implementation task is marked as completed:
+
+1. The project must compile successfully.
+2. All unit tests must pass.
+3. Linting must pass when configured.
+4. No unused imports, variables, parameters, or dead code may remain.
+5. Environment variables must be validated at application startup.
+6. Numeric configuration values must be finite and valid for their intended range.
+7. External responses must validate all required payload fields.
+8. HTTP 2xx responses with invalid payloads must be treated as failures.
+9. New error scenarios and edge cases must include tests.
+10. `.env.example` must document every supported environment variable using placeholder values only.
+11. No secrets, generated files, coverage output, build output, or dependencies may be staged for commit.
+12. Tasks must not be marked `[x]` until these checks pass.
+13. New or modified standards must be reflected in the implementation and unit tests within the same change.
+14. Do not introduce a mandatory rule in the standards document without adding or updating the tests that prove compliance.
+15. External-service error tests must verify both application-level status and upstream status when both are available.
 
 ## Serverless Deployment
 

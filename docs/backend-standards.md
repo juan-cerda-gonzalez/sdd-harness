@@ -17,7 +17,6 @@ alwaysApply: true
 - [Architecture Overview](#architecture-overview)
   - [Domain-Driven Design (DDD)](#domain-driven-design-ddd)
   - [Layered Architecture](#layered-architecture)
-  - [Controller and Endpoint Decision](#controller-and-endpoint-decision)
   - [Project Structure](#project-structure)
 - [Domain-Driven Design Principles](#domain-driven-design-principles)
   - [Entities](#entities)
@@ -91,7 +90,7 @@ This document outlines the best practices, conventions, and standards used in th
 ### Testing Framework
 - **Jest**: Testing framework with TypeScript support
 - **Coverage Threshold**: 90% for branches, functions, lines, and statements
-- **Test Location**: All tests MUST be centralized under `backend/src/_test/`, mirroring the production source structure
+- **Test Location**: `backend/src/_test/`, mirroring the production source structure
 
 ### Development Tools
 - **ESLint**: Code linting
@@ -118,39 +117,6 @@ The backend follows a layered DDD architecture:
 - Routes define API endpoints
 - Controllers use services from Application layer
 
-#### Controller and Endpoint Decision
-
-Before implementing a new service, integration, use case, or internal capability, the agent MUST determine whether the functionality must be exposed through an HTTP endpoint.
-
-The agent MUST explicitly ask the user whether a controller and route are required when:
-
-- the change creates an internal service but no public endpoint is specified;
-- the functionality must be tested through Postman, curl, Swagger, or another HTTP client;
-- the requirements describe the implementation but do not define how it will be invoked;
-- an outbound integration is created without an existing application flow that consumes it.
-
-The agent MUST NOT infer that a controller is required or unnecessary.
-This clarification MUST be resolved during OpenSpec proposal/design generation, before implementation tasks are finalized.
-
-The clarification must determine:
-
-- whether an HTTP endpoint is required;
-- whether the endpoint is permanent or development-only;
-- the HTTP method and route;
-- the expected request and response contract;
-- whether authentication is required.
-
-If a controller is required, the implementation MUST include:
-
-- a controller under `src/presentation/controllers/`;
-- a route under `src/presentation/routes/`;
-- application-layer service invocation;
-- validation and error handling;
-- controller tests under `src/_test/presentation/controllers/`;
-- route registration in the application composition root.
-
-If the decision remains unresolved, it MUST be recorded as an open question in the OpenSpec design and implementation of the presentation layer must not be inferred.
-
 **Application Layer** (`src/application/`)
 - Services contain business logic and orchestration
 - Validator handles input validation
@@ -165,51 +131,36 @@ If the decision remains unresolved, it MUST be recorded as an open question in t
 - Prisma ORM handles database operations
 - Repository implementations (via Prisma) satisfy domain interfaces
 
-
 ### Project Structure
 
-```text
+```
 backend/
 ├── src/
 │   ├── domain/
-│   │   ├── models/                  # Domain entities
-│   │   └── repositories/            # Repository interfaces
+│   │   ├── models/          # Domain entities
+│   │   └── repositories/    # Repository interfaces
 │   ├── application/
-│   │   ├── services/                # Business logic services
-│   │   └── validator.ts             # Input validation
+│   │   ├── services/        # Business logic services
+│   │   └── validator.ts     # Input validation
 │   ├── presentation/
-│   │   ├── controllers/             # HTTP request handlers
-│   │   └── routes/                  # Express route definitions
+│   │   └── controllers/     # HTTP request handlers
 │   ├── infrastructure/
-│   │   ├── auth/                    # Authentication clients and cache
-│   │   ├── config/                  # Environment and configuration
-│   │   ├── http/                    # Shared HTTP clients
-│   │   ├── logger.ts                # Logging utilities
-│   │   └── prismaClient.ts          # Prisma client setup, when applicable
-│   ├── middleware/                  # Express and outbound middleware
-│   ├── _test/                       # Centralized test location
-│   │   ├── application/
-│   │   │   └── services/
-│   │   ├── domain/
-│   │   ├── presentation/
-│   │   │   └── controllers/
-│   │   ├── infrastructure/
-│   │   │   ├── auth/
-│   │   │   ├── config/
-│   │   │   └── http/
-│   │   ├── middleware/
-│   │   ├── fixtures/                # Reusable test data
-│   │   ├── builders/                # Test data builders
-│   │   └── mocks/                   # Shared mocks
-│   ├── index.ts                     # Application entry point
-│   └── lambda.ts                    # AWS Lambda handler, when applicable
+│   │   ├── logger.ts        # Logging utilities
+│   │   └── prismaClient.ts  # Prisma client setup
+│   ├── routes/              # Express route definitions
+│   ├── middleware/          # Express middleware
+│   ├── index.ts             # Application entry point
+│   └── lambda.ts            # AWS Lambda handler
 ├── prisma/
-│   ├── schema.prisma                # Database schema, when applicable
-│   └── migrations/                  # Database migrations
-├── jest.config.js                   # Jest configuration
-├── tsconfig.json                    # TypeScript configuration
-├── serverless.yml                   # Serverless Framework config, when applicable
-└── package.json                     # Dependencies and scripts
+│   ├── schema.prisma        # Database schema
+│   └── migrations/          # Database migrations
+├── test-utils/
+│   ├── builders/            # Test data builders
+│   └── mocks/               # Mock helpers
+├── jest.config.js           # Jest configuration
+├── tsconfig.json            # TypeScript configuration
+├── serverless.yml           # Serverless Framework config
+└── package.json             # Dependencies and scripts
 ```
 
 ## Domain-Driven Design Principles
@@ -764,6 +715,26 @@ try {
     next(error);
 }
 ```
+### External Service Response Validation
+
+- A successful HTTP status does not guarantee a valid business response.
+- All responses from external services must validate required fields before being accepted.
+- HTTP 2xx responses with missing, empty, or malformed required fields must be treated as failures.
+- Application errors must not expose a successful HTTP status code as their own failure status.
+- The upstream HTTP status may be preserved separately for diagnostics.
+- External-service errors must distinguish between:
+  - transport failures;
+  - timeout failures;
+  - upstream non-success HTTP responses;
+  - successful HTTP responses with invalid payloads.
+- Tests must cover successful HTTP responses with missing, empty, or malformed required fields.
+- Application error status and upstream HTTP status must be modeled separately.
+- A malformed HTTP 2xx response must use a non-success application status, such as `502 Bad Gateway`.
+- The original upstream HTTP status should be preserved in a separate field such as `upstreamStatusCode`.
+- Logs for external-service failures should include both:
+  - `statusCode`: application-level failure status;
+  - `upstreamStatusCode`: original HTTP status returned by the external service.
+- Do not reuse an upstream successful status such as `200` as the application error status.
 
 ### Validation Patterns
 
@@ -936,43 +907,14 @@ The project has strict requirements for code quality and maintainability. These 
 
 ### Test File Structure
 
+- Use descriptive test file names: `[componentName].test.ts`.
+- All unit test files must be centralized under `backend/src/_test/`.
+- The structure under `src/_test/` must mirror the production structure under `src/`.
+- Do not place tests beside production files.
+- Do not create distributed `__tests__` directories.
 - Use Jest as the testing framework with TypeScript support.
-- All unit-test-related files MUST be centralized under `backend/src/_test/`.
-- Unit tests MUST NOT be placed beside production source files.
-- Distributed `__tests__` directories are not allowed.
-- Test files MUST use the naming convention `[componentName].test.ts`.
-- The `_test` directory MUST mirror the production source structure.
-- Maintain 90% coverage threshold for branches, functions, lines, and statements
+- Maintain a 90% coverage threshold for branches, functions, lines, and statements.
 
-
-Required structure:
-
-```text
-backend/src/
-├── application/
-├── domain/
-├── infrastructure/
-├── middleware/
-├── presentation/
-└── _test/
-    ├── application/
-    │   └── services/
-    ├── domain/
-    ├── infrastructure/
-    │   └── auth/
-    ├── middleware/
-    └── presentation/
-        └── controllers/
-```
-
-### Test File Example
-
-- src/application/services/tokenService.ts
-- src/_test/application/services/tokenService.test.ts
-- src/infrastructure/auth/tokenCache.ts
-- src/_test/infrastructure/auth/tokenCache.test.ts
-- src/presentation/controllers/authController.ts
-- src/_test/presentation/controllers/authController.test.ts
 
 ### Test Organization Pattern
 Template:
@@ -1129,6 +1071,14 @@ Assertion pattern:
 - Use type assertions sparingly and with proper justification
 - Leverage TypeScript's type system for better test reliability
 
+#### Unused Code
+
+- Unused imports, variables, parameters, private members, and dead code are not allowed.
+- TypeScript build configurations must enable `noUnusedLocals`.
+- TypeScript build configurations should enable `noUnusedParameters`.
+- Generated code must compile without unused-code errors.
+- Imports must only be added when they are actually used by the module.
+
 #### Documentation
 - Write clear, descriptive test names that explain the scenario
 - Add comments for complex test setups
@@ -1215,6 +1165,25 @@ const [candidates, positions] = await Promise.all([
 - **Never Commit Secrets**: Never commit `.env` files or secrets to version control
 - **Use Environment Variables**: Use environment variables for configuration
 - **Validate Environment**: Validate required environment variables at startup
+- Every environment variable must be validated at application startup.
+- Numeric environment variables must be explicitly parsed and validated.
+- Numeric values must be finite.
+- Values that represent durations, retries, limits, or timeouts must be greater than zero unless zero has an explicitly documented meaning.
+- Do not use `Number(value)` without validating the result with `Number.isFinite(...)`.
+- Invalid configuration must fail fast with a clear error message.
+- Default values must be documented in `.env.example`.
+
+Tests must cover:
+
+- missing values;
+- valid overrides;
+- non-numeric values;
+- zero;
+- negative values;
+- non-finite values when applicable.
+- decimal values when only integers are allowed.
+
+A validation rule must not be considered complete until all mandatory invalid-value cases are covered by unit tests.
 
 ```typescript
 // Validate required environment variables
@@ -1276,6 +1245,26 @@ npx prisma db seed       # Seed database
 - **All Tests Passing**: Ensure all tests pass before deployment
 - **Code Review**: Review code for adherence to standards
 
+### Implementation Quality Gate
+
+Before an implementation task is marked as completed:
+
+1. The project must compile successfully.
+2. All unit tests must pass.
+3. Linting must pass when configured.
+4. No unused imports, variables, parameters, or dead code may remain.
+5. Environment variables must be validated at application startup.
+6. Numeric configuration values must be finite and valid for their intended range.
+7. External responses must validate all required payload fields.
+8. HTTP 2xx responses with invalid payloads must be treated as failures.
+9. New error scenarios and edge cases must include tests.
+10. `.env.example` must document every supported environment variable using placeholder values only.
+11. No secrets, generated files, coverage output, build output, or dependencies may be staged for commit.
+12. Tasks must not be marked `[x]` until these checks pass.
+13. New or modified standards must be reflected in the implementation and unit tests within the same change.
+14. Do not introduce a mandatory rule in the standards document without adding or updating the tests that prove compliance.
+15. External-service error tests must verify both application-level status and upstream status when both are available.
+
 ## Serverless Deployment
 
 ### AWS Lambda Configuration
@@ -1306,29 +1295,5 @@ export const handler = async (
   return await serverlessHandler(event, context) as APIGatewayProxyResult;
 };
 ```
-
-## Outbound Service Authentication (Azure B2C)
-
-The backend authenticates outbound calls to external services using an OAuth 2.0 Client Credentials flow against Azure B2C. This mechanism is implemented once and must be reused by any future outbound integration instead of duplicating token acquisition logic.
-
-**Components:**
-- `ITokenProvider` (`src/domain/repositories/ITokenProvider.ts`) — domain interface exposing `getAccessToken(): Promise<string>`.
-- `azureB2CTokenClient` (`src/infrastructure/auth/azureB2CTokenClient.ts`) — requests a token from `AZURE_B2C_TOKEN_URL` via `POST` (`application/x-www-form-urlencoded`), sending `grant_type`, `client_id`, `client_secret`, `scope`, and `resource`. Retries a bounded number of times (1–2) on transient network errors only; authentication/validation failures (4xx/5xx) are not retried. The exact parameter set (`scope` alone vs. `scope` + `resource`) is still pending validation against the ticket's Postman collection.
-- `tokenCache` (`src/infrastructure/auth/tokenCache.ts`) — in-memory TTL cache (default 10 minutes, `AZURE_B2C_TOKEN_CACHE_TTL_SECONDS`). Never stores a failed or empty-token response. Also exposes remaining TTL for diagnostics.
-- `tokenService` (`src/application/services/tokenService.ts`) — implements `ITokenProvider`; returns the cached token when valid, otherwise acquires and caches a new one. Uses single-flight so concurrent callers during a cache miss share one upstream request. Also exposes `getStatus()` (non-sensitive cache metadata) and `forceRefreshAccessToken()` (bypasses the cache) for diagnostics.
-- `outboundAuthInterceptor` (`src/middleware/outboundAuthInterceptor.ts`) — attaches `Authorization: Bearer <token>` to the microservice's **shared outbound HTTP client**, by default, for every outbound call.
-
-**Default-on, explicit exceptions.** Every outbound integration is authenticated by default through the shared client (`createOutboundHttpClient`). An integration that must not carry this token (e.g. a different auth scheme) has to declare that explicitly — either via the dedicated unauthenticated client (`createUnauthenticatedHttpClient`) or an explicit `skipAuth: true` request flag. The interceptor never infers an exception implicitly.
-
-**Security:** the raw access token and `client_secret` are never logged, at any level; only metadata (cache hit/miss, status code, expiry) is logged. Credentials are sourced from environment variables / the secrets manager only.
-
-### Dev-Only Diagnostic Endpoint
-
-`GET /internal/auth/token-status` (`src/presentation/controllers/tokenStatusController.ts`, `src/presentation/routes/tokenStatusRoutes.ts`) exposes non-sensitive Azure B2C token/cache status for manual verification, since this capability has no other consumer yet.
-
-- **Response:** `{ "cached": boolean, "expiresInSeconds"?: number }` — never the token, secret, scope, or resource value.
-- **`?forceRefresh=true`:** bypasses the cache and requests a fresh token, returning the same shape. Failures respond `502` with a generic message, never the upstream body.
-- **Registration gate:** only registered when `NODE_ENV !== 'production'` (or `ENABLE_DIAGNOSTICS=true` explicitly overrides this). It must never be reachable in production. See `areDiagnosticsEnabled()` in `tokenStatusRoutes.ts`.
-- This endpoint is a temporary verification aid, not a permanent API — remove or replace it once a real outbound integration consumes `tokenService` directly.
 
 This document serves as the foundation for maintaining code quality and consistency across the LTI backend application. All team members should follow these practices to ensure a maintainable, scalable, and testable codebase.
