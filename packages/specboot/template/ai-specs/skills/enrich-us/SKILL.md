@@ -1,7 +1,7 @@
 ---
 name: enrich-us
 description: Analyze and enhance Jira user stories with complete, implementation-ready technical detail.
-author: LIDR.co
+author: juan.cerda
 version: 1.0.0
 ---
 # enrich-us Skill

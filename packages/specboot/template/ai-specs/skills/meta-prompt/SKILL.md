@@ -1,7 +1,7 @@
 ---
 name: meta-prompt
 description: Rewrite prompts using prompt-engineering best practices for precise and complete results.
-author: LIDR.co
+author: juan.cerda
 version: 1.0.0
 ---
 # meta-prompt Skill

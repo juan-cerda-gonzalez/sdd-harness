@@ -1,7 +1,7 @@
 ---
 name: update-docs
 description: Identify and update required technical documentation based on implemented changes.
-author: LIDR.co
+author: juan.cerda
 version: 1.0.0
 ---
 # update-docs Skill

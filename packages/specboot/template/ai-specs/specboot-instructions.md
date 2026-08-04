@@ -344,16 +344,16 @@ When contributing to the standards:
 
 ## 📄 License
 
-Copyright (c) 2025 LIDR.co
+Copyright (c) 2025 juan.cerda
 Licensed under the MIT License
 
 **English:**
 
-The content of this repository is part of the AI4Devs program by LIDR.co. If you want to learn to code with AI like the pros and get more templates and resources like these, you can find all the information on the official website: [https://lidr.co/ia-devs](https://lidr.co/ia-devs)
+The content of this repository is part of the AI4Devs program by juan.cerda. If you want to learn to code with AI like the pros and get more templates and resources like these, you can find all the information on the official website: [https://juan.cerda/ia-devs](https://juan.cerda/ia-devs)
 
 **Español:**
 
-El contenido de este repositorio es parte del programa AI4Devs de LIDR.co. Si quieres aprender a programar con IA como los pros, y obtener más plantillas y recursos como estos, puedes encontrar toda la información en la página oficial: [https://lidr.co/ia-devs](https://lidr.co/ia-devs)
+El contenido de este repositorio es parte del programa AI4Devs de juan.cerda. Si quieres aprender a programar con IA como los pros, y obtener más plantillas y recursos como estos, puedes encontrar toda la información en la página oficial: [https://juan.cerda/ia-devs](https://juan.cerda/ia-devs)
 
 ---
 
@@ -372,4 +372,4 @@ Additional inspiration/source acknowledgements:
 
 **Made with 🤖 by the LIDR community**
 
-For questions, issues, or suggestions, visit [LIDR.co](https://lidr.co/ia-devs)
+For questions, issues, or suggestions, visit [juan.cerda](https://juan.cerda/ia-devs)

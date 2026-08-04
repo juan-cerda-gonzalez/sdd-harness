@@ -1,7 +1,7 @@
 ---
 name: commit
 description: Create focused commits and pull requests following repository standards.
-author: LIDR.co
+author: juan.cerda
 version: 1.0.0
 ---
 # commit Skill

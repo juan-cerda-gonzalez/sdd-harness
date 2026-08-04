@@ -1,7 +1,7 @@
 ---
 name: explain
 description: Teach underlying concepts with clear mental models to close skill gaps behind user questions.
-author: LIDR.co
+author: juan.cerda
 version: 1.0.0
 ---
 # explain Skill
