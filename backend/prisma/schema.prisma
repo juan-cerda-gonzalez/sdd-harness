@@ -1,0 +1,25 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// The case-insensitive uniqueness of `name` is enforced at the database level
+// via a functional unique index on lower(name), added by hand-editing the
+// generated migration SQL (Prisma schema syntax has no expression-index support).
+// See migration.sql in the add_activities_table migration.
+model Activity {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(100)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
+
+  @@index([name])
+  @@map("activities")
+}

@@ -399,6 +399,207 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /api/activities:
+    get:
+      summary: List activities
+      description: Retrieve a paginated, searchable list of activities
+      tags:
+        - Activities
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: Case-insensitive partial match against activity name
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Page number for pagination
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 10
+            default: 10
+          description: Records per page (capped at 10)
+      responses:
+        '200':
+          description: Successfully retrieved activities
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityListResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityErrorResponse'
+
+    post:
+      summary: Create a new activity
+      description: Create an activity; rejects duplicate names (case-insensitive)
+      tags:
+        - Activities
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateActivityRequest'
+      responses:
+        '201':
+          description: Activity created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityResponse'
+        '400':
+          description: Validation error (missing, empty, or too-long name)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityErrorResponse'
+        '409':
+          description: An activity with the same name already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityErrorResponse'
+
+  /api/activities/export:
+    get:
+      summary: Export activities as Excel
+      description: Stream the filtered, unpaginated list of activities as a .xlsx file, reusing the list endpoint's filter logic
+      tags:
+        - Activities
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: Same case-insensitive filter as GET /api/activities
+      responses:
+        '200':
+          description: Streamed .xlsx file
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        '500':
+          description: Internal server error (returned as JSON, not a partial file, since it can only occur before the stream starts)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityErrorResponse'
+
+  /api/activities/{id}:
+    put:
+      summary: Rename an activity
+      description: Update an activity's name; validates existence and duplicate name (excluding itself)
+      tags:
+        - Activities
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: Activity ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateActivityRequest'
+      responses:
+        '200':
+          description: Activity updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityResponse'
+        '400':
+          description: Validation error (missing, empty, or too-long name)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityErrorResponse'
+        '404':
+          description: Activity not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityErrorResponse'
+        '409':
+          description: Another activity already has that name
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityErrorResponse'
+
+  /api/activities/{id}/status:
+    patch:
+      summary: Toggle activity active status
+      description: Soft delete/reactivate an activity by toggling its active flag. No physical delete endpoint exists.
+      tags:
+        - Activities
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: Activity ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateActivityStatusRequest'
+      responses:
+        '200':
+          description: Activity status updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityResponse'
+        '400':
+          description: Validation error (active is not a boolean)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityErrorResponse'
+        '404':
+          description: Activity not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityErrorResponse'
+
   /upload:
     post:
       summary: Upload file
@@ -1051,6 +1252,121 @@ components:
         - filePath
         - fileType
 
+    Activity:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Unique activity identifier
+        name:
+          type: string
+          maxLength: 100
+          description: Activity name
+        active:
+          type: boolean
+          description: Whether the activity is active (soft-delete flag)
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+          nullable: true
+          description: Identifier of the creating caller (unpopulated until an authorization layer exists)
+      required:
+        - id
+        - name
+        - active
+
+    ActivityResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/Activity'
+        message:
+          type: string
+      required:
+        - success
+        - data
+        - message
+
+    ActivityListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Activity'
+        message:
+          type: string
+        pagination:
+          $ref: '#/components/schemas/PaginationMetadata'
+      required:
+        - success
+        - data
+        - message
+        - pagination
+
+    CreateActivityRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Activity name (required, 1-100 characters)
+      required:
+        - name
+
+    UpdateActivityRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: New activity name (required, 1-100 characters)
+      required:
+        - name
+
+    UpdateActivityStatusRequest:
+      type: object
+      properties:
+        active:
+          type: boolean
+          description: New active status
+      required:
+        - active
+
+    ActivityErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            message:
+              type: string
+            code:
+              type: string
+              enum: [VALIDATION_ERROR, NOT_FOUND, CONFLICT, INTERNAL_ERROR]
+          required:
+            - message
+            - code
+      required:
+        - success
+        - error
+
     PaginationMetadata:
       type: object
       properties:
@@ -1085,6 +1401,8 @@ components:
         - message
 
 tags:
+  - name: Activities
+    description: Operations related to activity ("actividad") maintenance — CRUD, soft-delete, and Excel export
   - name: Candidates
     description: Operations related to candidate management
   - name: Positions

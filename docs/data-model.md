@@ -26,19 +26,9 @@ Do not document hypothetical entities, fields, relationships, or persistence tec
 
 ## Current State
 
-No project-specific persistent data model has been defined yet.
+The project has one persistent domain entity, `Activity`, backed by a PostgreSQL database hosted on Supabase and accessed via Prisma. This was introduced by the `create-crud-endpoint` OpenSpec change (VN-4175) and is the first persistence layer in this project.
 
-The data model will be created incrementally through approved OpenSpec changes.
-
-When the project does not use persistent storage, document that decision explicitly in this section.
-
-Example:
-
-- The application currently has no database.
-- Runtime information is stored only in memory.
-- In-memory information is lost when the application process restarts.
-- Secrets, credentials, and tokens are never persisted by the application.
-- External systems remain the source of truth for their own data.
+The data model will continue to be extended incrementally through approved OpenSpec changes.
 
 ---
 
@@ -48,7 +38,7 @@ Document only technologies that are currently approved and in use.
 
 | Purpose | Technology | Status | Notes |
 |---|---|---|---|
-| Primary database | Not defined | Pending | Define through an approved OpenSpec change |
+| Primary database | PostgreSQL (Supabase) via Prisma | Active | `backend/prisma/schema.prisma`; connection via `DATABASE_URL` (pooled) / `DIRECT_URL` (migrations) |
 | Cache | Not defined | Pending | Document whether it is local or distributed |
 | File storage | Not defined | Pending | Define ownership, access, and retention |
 | Messaging or event store | Not defined | Pending | Define only when required |
@@ -63,77 +53,59 @@ Agents and developers must not infer a database, ORM, cache, file-storage provid
 
 Document each implemented or approved domain entity using the following structure.
 
-### Entity: `<EntityName>`
+### Entity: `Activity`
 
 #### Purpose
 
-Describe what the entity represents in the business domain.
+Represents an "actividad" (activity) — a maintainer entity used to categorize/tag other records in the system. Introduced by VN-4175 as the project's first persistent entity.
 
 #### Ownership and source of truth
 
-- **Owning service or bounded context:** `<name>`
-- **Source of truth:** `<system or component>`
-- **Persistence:** `<table, collection, memory, file, external system, or none>`
-- **Lifecycle owner:** `<component or team>`
+- **Owning service or bounded context:** `activities-management` (backend)
+- **Source of truth:** PostgreSQL (Supabase) via Prisma
+- **Persistence:** table `activities`
+- **Lifecycle owner:** `backend/src/application/services/activityService.ts`
 
 #### Fields
 
 | Field | Type | Required | Default | Sensitive | Description |
 |---|---|---:|---|---:|---|
-| `id` | `<type>` | Yes | Generated | No | Unique identifier |
+| `id` | `Int` (autoincrement) | Yes | Generated | No | Unique identifier |
+| `name` | `varchar(100)` | Yes | — | No | Display name of the activity |
+| `active` | `boolean` | Yes | `true` | No | Soft-delete flag; `false` = inactive |
+| `createdAt` | `timestamp` | Yes | `now()` | No | Creation timestamp |
+| `updatedAt` | `timestamp` | Yes | Auto-updated | No | Last modification timestamp |
+| `createdBy` | `text` | No | `null` | No | Identifier of the creating caller; unpopulated until an auth/identity layer exists (see Non-Goals) |
 
 #### Validation rules
 
-- Define required formats, ranges, lengths, and business invariants.
-- Distinguish application validation from database constraints.
-- Specify whether empty strings are allowed.
-- Specify whether null and undefined are valid.
-- Define units for numeric values.
-- Define timezone and precision rules for dates.
-- Do not use ambiguous descriptions such as “valid value” without defining validity.
+- `name` is required, must be a non-empty string after trimming, and must not exceed 100 characters (application layer, `backend/src/application/validator.ts`).
+- `name` uniqueness is case-insensitive and enforced both at the application layer (pre-check) and at the database layer (unique index on `lower(name)`), to close the race-condition window between check and write.
+- `active` must be a boolean when provided to the status-toggle endpoint.
+- Empty strings for `name` are not allowed. `null`/`undefined` for `name` are not allowed on create/update.
 
 #### Relationships
 
-- Describe cardinality.
-- Identify ownership.
-- Identify foreign keys or logical references.
-- Define cascade behavior when applicable.
-- Define deletion, deactivation, and orphan behavior.
-- Define whether the relationship is mandatory or optional.
+None. `Activity` has no relationships to other entities in this change.
 
 #### Indexes and constraints
 
-- Primary keys
-- Unique constraints
-- Foreign keys
-- Composite indexes
-- Search indexes
-- Check constraints
-- Partition keys
-- Tenant-isolation constraints
+- Primary key: `id`
+- Non-unique index: `name` (supports `ILIKE`/`contains` search)
+- Unique constraint: case-insensitive unique index on `lower(name)` (`activities_name_lower_key`), hand-written in the migration since Prisma schema syntax has no expression-index support
 
 #### Lifecycle
 
-- Creation
-- Updates
-- Status transitions
-- Deactivation
-- Deletion
-- Retention
-- Archival
-- Recovery or restoration
+- **Creation:** via `POST /api/activities`; `active` defaults to `true`.
+- **Updates:** name-only rename via `PUT /api/activities/{id}`.
+- **Status transitions:** `active` ⇄ `inactive` via `PATCH /api/activities/{id}/status` (soft delete/reactivate).
+- **Deletion:** no physical delete endpoint exists; deactivation (`active: false`) is the only removal mechanism.
+- **Retention / Archival / Recovery:** not applicable — records are never physically removed by the application.
 
 #### Audit requirements
 
-Document when applicable:
-
-- creation timestamp;
-- last modification timestamp;
-- creating user or service;
-- modifying user or service;
-- version or concurrency field;
-- business-event history;
-- deletion or deactivation reason.
+- `createdAt` and `updatedAt` are tracked automatically.
+- `createdBy` is present in the schema for future use but is not populated by this change, since no authorization/identity layer exists yet (tracked as an explicit follow-up dependency in `openspec/changes/create-crud-endpoint/proposal.md`).
 
 ---
 

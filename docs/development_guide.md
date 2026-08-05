@@ -59,7 +59,16 @@ ENABLE_DIAGNOSTICS=
 REACT_APP_API_URL=http://localhost:3000
 ```
 
-### 3. Database Setup (PostgreSQL with Docker)
+### 3. Database Setup
+
+Two database connection strategies coexist in this project, depending on the feature being developed:
+
+- **Dockerized local PostgreSQL** (default, described below) — used for most local development.
+- **Supabase-hosted PostgreSQL** — used specifically by the `activities-management` feature (VN-4175), which was built directly against Supabase per product decision. See [Supabase connection (Activities feature)](#supabase-connection-activities-feature) below.
+
+Only one `DATABASE_URL`/`DIRECT_URL` pair is active in `backend/.env` at a time; switch between them depending on which feature you are working on.
+
+#### Dockerized PostgreSQL
 
 Start the PostgreSQL database using Docker Compose:
 
@@ -77,6 +86,25 @@ The PostgreSQL database will be available at:
 - **Database**: `LTIdb`
 - **Username**: `LTIdbUser`
 - **Password**: `D1ymf8wyQEGthFR1E9xhCq`
+
+#### Supabase Connection (Activities Feature)
+
+The `activities-management` feature (`GET/POST/PUT/PATCH /api/activities*`, VN-4175) connects to a Supabase-hosted PostgreSQL database instead of the Dockerized instance above. Add the following to `backend/.env` (real credentials come from the project's Supabase dashboard — Settings → Database — never commit them; see `backend/.env.example` for the placeholder format):
+
+```env
+# DATABASE_URL: transaction-mode pooler (pgbouncer=true), used by the running application at runtime.
+DATABASE_URL="postgresql://<user>:<password>@<pooler-host>:6543/postgres?pgbouncer=true"
+
+# DIRECT_URL: session-mode pooler, used only by `prisma migrate`.
+DIRECT_URL="postgresql://<user>:<password>@<pooler-host>:5432/postgres"
+```
+
+Notes:
+- URL-encode any special characters in the password (e.g. `#` → `%23`).
+- `DATABASE_URL` must go through the transaction-mode pooler (port `6543`, `pgbouncer=true`) — Prisma Client uses this at runtime.
+- `DIRECT_URL` must go through the session-mode pooler (port `5432`) — `prisma migrate` uses this exclusively, since the transaction-mode pooler does not support the prepared-statement behavior migrations rely on.
+- The backend fails fast at startup with a clear error if either variable is missing or malformed (see `backend/src/infrastructure/config/databaseConfig.ts`).
+- Apply migrations with `npx prisma migrate deploy` (or `npx prisma migrate dev` when authoring a new migration).
 
 ### 4. Backend Setup
 
