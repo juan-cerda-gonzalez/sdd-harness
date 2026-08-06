@@ -1,5 +1,6 @@
 import { Prisma, PrismaClient } from '@prisma/client';
 import { Activity } from '../../domain/models/Activity';
+import { ConflictError } from '../../domain/errors';
 import {
   CreateActivityData,
   FindManyParams,
@@ -7,6 +8,15 @@ import {
   IActivityRepository,
   UpdateActivityData
 } from '../../domain/repositories/IActivityRepository';
+
+const UNIQUE_CONSTRAINT_VIOLATION_CODE = 'P2002';
+
+function isUniqueConstraintViolation(error: unknown): boolean {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === UNIQUE_CONSTRAINT_VIOLATION_CODE
+  );
+}
 
 type ActivityRecord = {
   id: number;
@@ -84,21 +94,35 @@ export class ActivityRepository implements IActivityRepository {
   }
 
   async create(data: CreateActivityData): Promise<Activity> {
-    const record = await this.prisma.activity.create({
-      data: {
-        name: data.name,
-        createdBy: data.createdBy ?? null
+    try {
+      const record = await this.prisma.activity.create({
+        data: {
+          name: data.name,
+          createdBy: data.createdBy ?? null
+        }
+      });
+      return toDomain(record);
+    } catch (error) {
+      if (isUniqueConstraintViolation(error)) {
+        throw new ConflictError(`An activity named "${data.name}" already exists`);
       }
-    });
-    return toDomain(record);
+      throw error;
+    }
   }
 
   async update(id: number, data: UpdateActivityData): Promise<Activity> {
-    const record = await this.prisma.activity.update({
-      where: { id },
-      data: { name: data.name }
-    });
-    return toDomain(record);
+    try {
+      const record = await this.prisma.activity.update({
+        where: { id },
+        data: { name: data.name }
+      });
+      return toDomain(record);
+    } catch (error) {
+      if (isUniqueConstraintViolation(error)) {
+        throw new ConflictError(`An activity named "${data.name}" already exists`);
+      }
+      throw error;
+    }
   }
 
   async updateStatus(id: number, active: boolean): Promise<Activity> {

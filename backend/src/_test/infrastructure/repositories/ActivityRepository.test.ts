@@ -1,5 +1,13 @@
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { ActivityRepository } from '../../../infrastructure/repositories/ActivityRepository';
+import { ConflictError } from '../../../domain/errors';
+
+function createUniqueConstraintError(): Prisma.PrismaClientKnownRequestError {
+  return new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+    code: 'P2002',
+    clientVersion: '6.19.3'
+  });
+}
 
 type MockPrismaClient = {
   activity: {
@@ -183,6 +191,23 @@ describe('ActivityRepository', () => {
       });
       expect(result.name).toBe('Ventas');
     });
+
+    it('should translate a unique constraint violation into a ConflictError', async () => {
+      // Arrange
+      mockPrisma.activity.create.mockRejectedValue(createUniqueConstraintError());
+
+      // Act & Assert
+      await expect(repository.create({ name: 'Ventas' })).rejects.toThrow(ConflictError);
+    });
+
+    it('should propagate unexpected database errors unchanged', async () => {
+      // Arrange
+      const unexpectedError = new Error('connection lost');
+      mockPrisma.activity.create.mockRejectedValue(unexpectedError);
+
+      // Act & Assert
+      await expect(repository.create({ name: 'Ventas' })).rejects.toThrow('connection lost');
+    });
   });
 
   describe('update', () => {
@@ -199,6 +224,23 @@ describe('ActivityRepository', () => {
         data: { name: 'Nuevo nombre' }
       });
       expect(result.name).toBe('Nuevo nombre');
+    });
+
+    it('should translate a unique constraint violation into a ConflictError', async () => {
+      // Arrange
+      mockPrisma.activity.update.mockRejectedValue(createUniqueConstraintError());
+
+      // Act & Assert
+      await expect(repository.update(1, { name: 'Nuevo nombre' })).rejects.toThrow(ConflictError);
+    });
+
+    it('should propagate unexpected database errors unchanged', async () => {
+      // Arrange
+      const unexpectedError = new Error('connection lost');
+      mockPrisma.activity.update.mockRejectedValue(unexpectedError);
+
+      // Act & Assert
+      await expect(repository.update(1, { name: 'Nuevo nombre' })).rejects.toThrow('connection lost');
     });
   });
 

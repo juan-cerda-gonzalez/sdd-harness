@@ -22,6 +22,25 @@ describe('validator - validateActivityName', () => {
       // Assert
       expect(result).toBe(name);
     });
+
+    it('should trim leading and trailing whitespace from the name', () => {
+      // Act
+      const result = validateActivityName('  Ventas  ');
+
+      // Assert
+      expect(result).toBe('Ventas');
+    });
+
+    it('should accept a name that is within the maximum length only after trimming', () => {
+      // Arrange
+      const name = `  ${'a'.repeat(ACTIVITY_NAME_MAX_LENGTH)}  `;
+
+      // Act
+      const result = validateActivityName(name);
+
+      // Assert
+      expect(result).toBe('a'.repeat(ACTIVITY_NAME_MAX_LENGTH));
+    });
   });
 
   describe('should_throw_ValidationError_when_invalid', () => {

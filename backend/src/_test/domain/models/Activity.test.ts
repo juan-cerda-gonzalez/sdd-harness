@@ -35,6 +35,14 @@ describe('Activity - constructor', () => {
       // Assert
       expect(activity.name).toBe(name);
     });
+
+    it('should trim leading and trailing whitespace from the name', () => {
+      // Act
+      const activity = new Activity({ name: '  Ventas  ' });
+
+      // Assert
+      expect(activity.name).toBe('Ventas');
+    });
   });
 
   describe('should_throw_when_name_is_invalid', () => {

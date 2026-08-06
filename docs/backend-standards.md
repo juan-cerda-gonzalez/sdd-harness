@@ -37,6 +37,7 @@ alwaysApply: true
   - [TypeScript Usage](#typescript-usage)
   - [Error Handling](#error-handling)
   - [Validation Patterns](#validation-patterns)
+      - [Input Normalization](#input-normalization)
   - [Logging Standards](#logging-standards)
 - [API Design Standards](#api-design-standards)
   - [REST Endpoints](#rest-endpoints)
@@ -44,6 +45,7 @@ alwaysApply: true
   - [Error Response Format](#error-response-format)
   - [CORS Configuration](#cors-configuration)
 - [Database Patterns](#database-patterns)
+  - [Database Constraint Error Translation](#database-constraint-error-translation)
   - [Prisma Schema](#prisma-schema)
   - [Migrations](#migrations)
   - [Repository Pattern](#repository-pattern)
@@ -64,6 +66,7 @@ alwaysApply: true
   - [Git Workflow](#git-workflow)
   - [Development Scripts](#development-scripts)
   - [Code Quality](#code-quality)
+  - [Implementation Quality Gate](#implementation-quality-gate)
 - [Serverless Deployment](#serverless-deployment)
   - [AWS Lambda Configuration](#aws-lambda-configuration)
   - [Serverless Framework](#serverless-framework)
@@ -756,6 +759,40 @@ export async function addCandidate(req: Request, res: Response, next: NextFuncti
 }
 ```
 
+#### Input Normalization
+
+- Validation and normalization must occur before duplicate checks, business logic, and persistence.
+- String values must be normalized once and the normalized value must be reused throughout the operation.
+- Leading and trailing whitespace must be removed when whitespace is not meaningful to the domain.
+- Validators must return the normalized value instead of validating one value and returning the original unnormalized value.
+- Length validation must be applied to the normalized value.
+- Duplicate checks must use the same normalized representation that will be persisted.
+- Internal whitespace normalization, such as collapsing repeated spaces, must only be applied when explicitly required by the business rule.
+
+Example:
+
+```typescript
+export function validateActivityName(name: unknown): string {
+  if (typeof name !== 'string') {
+    throw new ValidationError('Activity name must be a string');
+  }
+
+  const normalizedName = name.trim();
+
+  if (normalizedName.length === 0) {
+    throw new ValidationError('Activity name is required');
+  }
+
+  if (normalizedName.length > 100) {
+    throw new ValidationError(
+      'Activity name must not exceed 100 characters',
+    );
+  }
+
+  return normalizedName;
+}
+```
+
 ### Logging Standards
 
 - **Use Logger Class**: Use the centralized logger from `src/infrastructure/logger.ts`
@@ -856,6 +893,27 @@ app.use(cors(corsOptions));
 ```
 
 ## Database Patterns
+### Database Constraint Error Translation
+
+- Application-level pre-checks must not be treated as the final guarantee of uniqueness.
+- Unique constraints, foreign keys, and other database constraints must remain the authoritative protection against concurrent writes.
+- Create and update operations must handle database constraint violations explicitly.
+- Known persistence errors must be translated into application or domain errors.
+- Raw ORM or database errors must not be returned to API clients.
+- A unique-constraint violation must normally be translated to a conflict response such as HTTP `409`.
+- Database-specific error codes should be isolated in the infrastructure layer whenever possible.
+- Both create and update operations must handle concurrency-related unique-constraint violations.
+
+Example flow:
+
+```text
+Application duplicate pre-check
+→ repository create/update
+→ database unique constraint
+→ infrastructure error translation
+→ application ConflictError
+→ HTTP 409 response
+```
 
 ### Prisma Schema
 
@@ -1172,16 +1230,32 @@ const [candidates, positions] = await Promise.all([
 - Do not use `Number(value)` without validating the result with `Number.isFinite(...)`.
 - Invalid configuration must fail fast with a clear error message.
 - Default values must be documented in `.env.example`.
+- Environment variables representing network ports must be validated at application startup.
+- A port value must be:
+  - an integer;
+  - greater than or equal to `1`;
+  - less than or equal to `65535`.
+- If the port variable is missing or empty, the documented default may be used.
+- If the port variable is explicitly provided but invalid, the application must fail fast.
+- Do not silently fall back to the default when an explicitly configured port is invalid.
+- Do not pass `NaN`, decimal values, negative values, zero, or values above `65535` to `app.listen()`.
 
-Tests must cover:
+Tests for numeric environment variables must cover:
 
 - missing values;
 - valid overrides;
 - non-numeric values;
 - zero;
 - negative values;
-- non-finite values when applicable.
+- non-finite values;
 - decimal values when only integers are allowed.
+
+Tests for network ports must additionally cover:
+
+- missing port and default behavior;
+- valid port override;
+- value greater than `65535`;
+- leading or trailing whitespace.
 
 A validation rule must not be considered complete until all mandatory invalid-value cases are covered by unit tests.
 
@@ -1264,6 +1338,14 @@ Before an implementation task is marked as completed:
 13. New or modified standards must be reflected in the implementation and unit tests within the same change.
 14. Do not introduce a mandatory rule in the standards document without adding or updating the tests that prove compliance.
 15. External-service error tests must verify both application-level status and upstream status when both are available.
+16. All numeric environment variables must be validated for type, finiteness, range, and integer requirements where applicable.
+17. Explicitly invalid configuration must fail fast and must not silently fall back to defaults.
+18. All persisted strings must use the same normalized value for validation, duplicate checks, and storage.
+19. Application-level duplicate checks must be backed by database constraints.
+20. Create and update operations must translate database uniqueness violations into application-level conflict errors.
+21. Raw ORM or database error messages must never be returned to API clients.
+22. Concurrency scenarios must be considered for operations protected by unique constraints.
+23. New normalization and constraint-handling behavior must include unit tests.
 
 ## Serverless Deployment
 

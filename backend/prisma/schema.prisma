@@ -11,7 +11,15 @@ datasource db {
 // The case-insensitive uniqueness of `name` is enforced at the database level
 // via a functional unique index on lower(name), added by hand-editing the
 // generated migration SQL (Prisma schema syntax has no expression-index support).
-// See migration.sql in the add_activities_table migration.
+// See migration.sql in the add_activities_name_ci_unique_index migration.
+//
+// WARNING: this constraint is NOT represented in this file. Do not run
+// `prisma db push` or `prisma migrate reset` against this schema — both
+// recreate the database from schema.prisma alone and will silently drop
+// the unique index, removing the database-level backstop that
+// ActivityRepository relies on to turn concurrent duplicate-name writes
+// into a 409 Conflict. Always apply changes via `prisma migrate dev` /
+// `prisma migrate deploy`, which replay migration.sql files instead.
 model Activity {
   id        Int      @id @default(autoincrement())
   name      String   @db.VarChar(100)

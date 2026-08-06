@@ -18,22 +18,23 @@ export class Activity {
   readonly createdBy?: string | null;
 
   constructor(props: ActivityProps) {
-    Activity.validateName(props.name);
-
     this.id = props.id;
-    this.name = props.name;
+    this.name = Activity.normalizeName(props.name);
     this.active = props.active ?? true;
     this.createdAt = props.createdAt;
     this.updatedAt = props.updatedAt;
     this.createdBy = props.createdBy;
   }
 
-  static validateName(name: string): void {
-    if (!name || name.trim().length === 0) {
+  static normalizeName(name: string): string {
+    const normalizedName = name ? name.trim() : '';
+
+    if (normalizedName.length === 0) {
       throw new Error('Activity name is required');
     }
-    if (name.length > ACTIVITY_NAME_MAX_LENGTH) {
+    if (normalizedName.length > ACTIVITY_NAME_MAX_LENGTH) {
       throw new Error(`Activity name must be at most ${ACTIVITY_NAME_MAX_LENGTH} characters`);
     }
+    return normalizedName;
   }
 }

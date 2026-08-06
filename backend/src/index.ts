@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import { loadDatabaseConfig } from './infrastructure/config/databaseConfig';
+import { loadServerConfig } from './infrastructure/config/serverConfig';
 import { prisma } from './infrastructure/prismaClient';
 import { ActivityRepository } from './infrastructure/repositories/ActivityRepository';
 import { ActivityService } from './application/services/activityService';
@@ -18,7 +19,7 @@ const activityController = new ActivityController(activityService);
 
 app.use('/api', createActivityRoutes(activityController));
 
-const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
+const { port: PORT } = loadServerConfig();
 
 app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);

@@ -187,7 +187,7 @@ describe('ActivityService', () => {
   });
 
   describe('exportToExcel', () => {
-    it('should reuse the same filter as list and stream rows without buffering the full file first', async () => {
+    it('should reuse the same filter as list and stream the XLSX output as rows are written', async () => {
       // Arrange
       repository.findAllMatching.mockResolvedValue([existingActivity]);
       const destination = new PassThrough();
