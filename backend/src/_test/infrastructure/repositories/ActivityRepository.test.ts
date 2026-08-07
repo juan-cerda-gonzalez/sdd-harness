@@ -15,6 +15,7 @@ type MockPrismaClient = {
     count: jest.Mock;
     findUnique: jest.Mock;
     findFirst: jest.Mock;
+    create: jest.Mock;
     update: jest.Mock;
   };
 };
@@ -26,6 +27,7 @@ function createMockPrisma(): MockPrismaClient {
       count: jest.fn(),
       findUnique: jest.fn(),
       findFirst: jest.fn(),
+      create: jest.fn(),
       update: jest.fn()
     }
   };
@@ -172,6 +174,39 @@ describe('ActivityRepository', () => {
         where: { name: { equals: 'ventas', mode: 'insensitive' }, id: { not: 1 } }
       });
       expect(result).toBeNull();
+    });
+  });
+
+  describe('create', () => {
+    it('should persist a new activity with createdBy defaulted to null', async () => {
+      // Arrange
+      mockPrisma.activity.create.mockResolvedValue(sampleRecord);
+
+      // Act
+      const result = await repository.create({ name: 'Ventas' });
+
+      // Assert
+      expect(mockPrisma.activity.create).toHaveBeenCalledWith({
+        data: { name: 'Ventas', createdBy: null }
+      });
+      expect(result.name).toBe('Ventas');
+    });
+
+    it('should translate a unique constraint violation into a ConflictError', async () => {
+      // Arrange
+      mockPrisma.activity.create.mockRejectedValue(createUniqueConstraintError());
+
+      // Act & Assert
+      await expect(repository.create({ name: 'Ventas' })).rejects.toThrow(ConflictError);
+    });
+
+    it('should propagate unexpected database errors unchanged', async () => {
+      // Arrange
+      const unexpectedError = new Error('connection lost');
+      mockPrisma.activity.create.mockRejectedValue(unexpectedError);
+
+      // Act & Assert
+      await expect(repository.create({ name: 'Ventas' })).rejects.toThrow('connection lost');
     });
   });
 

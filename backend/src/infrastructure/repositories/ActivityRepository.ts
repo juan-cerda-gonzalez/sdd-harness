@@ -2,6 +2,7 @@ import { Prisma, PrismaClient } from '@prisma/client';
 import { Activity } from '../../domain/models/Activity';
 import { ConflictError } from '../../domain/errors';
 import {
+  CreateActivityData,
   FindManyParams,
   FindManyResult,
   IActivityRepository,
@@ -90,6 +91,23 @@ export class ActivityRepository implements IActivityRepository {
       }
     });
     return record ? toDomain(record) : null;
+  }
+
+  async create(data: CreateActivityData): Promise<Activity> {
+    try {
+      const record = await this.prisma.activity.create({
+        data: {
+          name: data.name,
+          createdBy: data.createdBy ?? null
+        }
+      });
+      return toDomain(record);
+    } catch (error) {
+      if (isUniqueConstraintViolation(error)) {
+        throw new ConflictError(`An activity named "${data.name}" already exists`);
+      }
+      throw error;
+    }
   }
 
   async update(id: number, data: UpdateActivityData): Promise<Activity> {

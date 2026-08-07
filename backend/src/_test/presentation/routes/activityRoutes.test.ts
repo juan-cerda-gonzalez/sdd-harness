@@ -6,6 +6,7 @@ import { ActivityController } from '../../../presentation/controllers/activityCo
 function createMockController(): jest.Mocked<ActivityController> {
   return {
     list: jest.fn((_req, res) => res.status(200).json({ success: true, data: [] })),
+    create: jest.fn((_req, res) => res.status(201).json({ success: true, data: {} })),
     update: jest.fn((_req, res) => res.status(200).json({ success: true, data: {} })),
     updateStatus: jest.fn((_req, res) => res.status(200).json({ success: true, data: {} })),
     export: jest.fn((_req, res) => res.status(200).send('xlsx'))
@@ -26,6 +27,9 @@ describe('activityRoutes', () => {
 
     await request(app).get('/api/activities/export').expect(200);
     expect(controller.export).toHaveBeenCalledTimes(1);
+
+    await request(app).post('/api/activities').send({ name: 'Ventas' }).expect(201);
+    expect(controller.create).toHaveBeenCalledTimes(1);
 
     await request(app).put('/api/activities/1').send({ name: 'Ventas' }).expect(200);
     expect(controller.update).toHaveBeenCalledTimes(1);
