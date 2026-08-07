@@ -7,7 +7,6 @@ import { ConflictError, NotFoundError } from '../../../domain/errors';
 function createMockService(): jest.Mocked<ActivityService> {
   return {
     list: jest.fn(),
-    create: jest.fn(),
     update: jest.fn(),
     updateStatus: jest.fn(),
     exportToExcel: jest.fn()
@@ -99,50 +98,6 @@ describe('ActivityController', () => {
 
       // Assert
       expect(service.list).toHaveBeenCalledWith({ search: 'venta', page: 2, limit: 5 });
-    });
-  });
-
-  describe('create', () => {
-    it('should return 201 with the created activity', async () => {
-      // Arrange
-      service.create.mockResolvedValue(sampleActivity);
-      const req = { body: { name: 'Ventas' } } as unknown as Request;
-      const res = createMockResponse();
-
-      // Act
-      await controller.create(req, res);
-
-      // Assert
-      expect(res.status).toHaveBeenCalledWith(201);
-      expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ success: true, data: sampleActivity })
-      );
-    });
-
-    it('should return 400 when name is missing', async () => {
-      // Arrange
-      const req = { body: {} } as unknown as Request;
-      const res = createMockResponse();
-
-      // Act
-      await controller.create(req, res);
-
-      // Assert
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(service.create).not.toHaveBeenCalled();
-    });
-
-    it('should return 409 when the service reports a conflict', async () => {
-      // Arrange
-      service.create.mockRejectedValue(new ConflictError('duplicate'));
-      const req = { body: { name: 'Ventas' } } as unknown as Request;
-      const res = createMockResponse();
-
-      // Act
-      await controller.create(req, res);
-
-      // Assert
-      expect(res.status).toHaveBeenCalledWith(409);
     });
   });
 

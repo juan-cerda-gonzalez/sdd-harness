@@ -55,16 +55,6 @@ export class ActivityController {
     }
   };
 
-  create = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const name = validateActivityName(req.body?.name);
-      const activity = await this.activityService.create(name);
-      res.status(201).json({ success: true, data: activity, message: 'Activity created successfully' });
-    } catch (error) {
-      handleError(res, error);
-    }
-  };
-
   update = async (req: Request, res: Response): Promise<void> => {
     try {
       const id = parseId(req.params.id);

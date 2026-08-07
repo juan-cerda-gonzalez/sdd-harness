@@ -10,7 +10,6 @@ function createMockRepository(): jest.Mocked<IActivityRepository> {
     findAllMatching: jest.fn(),
     findById: jest.fn(),
     findByNameCaseInsensitive: jest.fn(),
-    create: jest.fn(),
     update: jest.fn(),
     updateStatus: jest.fn()
   };
@@ -83,31 +82,6 @@ describe('ActivityService', () => {
 
       // Assert
       expect(repository.findMany).toHaveBeenCalledWith({ search: undefined, page: 1, limit: 10 });
-    });
-  });
-
-  describe('create', () => {
-    it('should create the activity when no duplicate exists', async () => {
-      // Arrange
-      repository.findByNameCaseInsensitive.mockResolvedValue(null);
-      repository.create.mockResolvedValue(existingActivity);
-
-      // Act
-      const result = await service.create('Ventas');
-
-      // Assert
-      expect(repository.findByNameCaseInsensitive).toHaveBeenCalledWith('Ventas');
-      expect(repository.create).toHaveBeenCalledWith({ name: 'Ventas', createdBy: undefined });
-      expect(result).toBe(existingActivity);
-    });
-
-    it('should throw ConflictError when an activity with the same name already exists', async () => {
-      // Arrange
-      repository.findByNameCaseInsensitive.mockResolvedValue(existingActivity);
-
-      // Act & Assert
-      await expect(service.create('ventas')).rejects.toThrow(ConflictError);
-      expect(repository.create).not.toHaveBeenCalled();
     });
   });
 

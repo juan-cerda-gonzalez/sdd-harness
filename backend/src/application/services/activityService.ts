@@ -40,14 +40,6 @@ export class ActivityService {
     return { items, total, page, limit, totalPages };
   }
 
-  async create(name: string, createdBy?: string | null): Promise<Activity> {
-    const existing = await this.repository.findByNameCaseInsensitive(name);
-    if (existing) {
-      throw new ConflictError(`An activity named "${name}" already exists`);
-    }
-    return this.repository.create({ name, createdBy });
-  }
-
   async update(id: number, name: string): Promise<Activity> {
     const existing = await this.repository.findById(id);
     if (!existing) {

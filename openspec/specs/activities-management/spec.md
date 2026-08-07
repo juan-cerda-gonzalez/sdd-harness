@@ -25,25 +25,6 @@ The system MUST expose `GET /api/activities` returning a paginated list of activ
 - **WHEN** a client requests a `page` number greater than `totalPages`
 - **THEN** the system returns HTTP 200 with an empty `data` array and the correct `total`/`totalPages`
 
-### Requirement: Create a new activity
-The system MUST expose `POST /api/activities` accepting `{ "name": string }`. The system MUST validate that `name` is present, non-empty, and at most 100 characters. The system MUST reject creation when an active or inactive activity with the same name already exists (case-insensitive comparison) by returning HTTP 409. On success, the system MUST persist the activity with `active: true` and return HTTP 201 with the created resource.
-
-#### Scenario: Successful creation
-- **WHEN** a client sends `POST /api/activities` with `{ "name": "Nueva Actividad" }` and no existing activity has that name
-- **THEN** the system returns HTTP 201 with the created activity, including a generated `id`, `name: "Nueva Actividad"`, and `active: true`
-
-#### Scenario: Missing name is rejected
-- **WHEN** a client sends `POST /api/activities` with `{}` or `{ "name": "" }`
-- **THEN** the system returns HTTP 400 with a validation error and does not persist any record
-
-#### Scenario: Name exceeding the maximum length is rejected
-- **WHEN** a client sends `POST /api/activities` with a `name` longer than 100 characters
-- **THEN** the system returns HTTP 400 with a validation error and does not persist any record
-
-#### Scenario: Duplicate name is rejected regardless of case
-- **WHEN** a client sends `POST /api/activities` with `{ "name": "Ventas" }` and an activity named "ventas" already exists
-- **THEN** the system returns HTTP 409 and does not create a duplicate record
-
 ### Requirement: Update an activity's name
 The system MUST expose `PUT /api/activities/{id}` accepting `{ "name": string }`. The system MUST return HTTP 404 when `id` does not correspond to an existing activity. The system MUST apply the same `name` validation rules as creation (required, max 100 characters). The system MUST return HTTP 409 when another activity (different `id`) already has the same name, case-insensitive. On success, the system MUST update the `updatedAt` audit field and return HTTP 200 with the updated resource.
 
