@@ -36,10 +36,54 @@ function copyRecursive(src, dest) {
 function createSymlink(linkRelPath, symlinkTarget) {
   const full = path.join(target, linkRelPath);
   ensureDir(path.dirname(full));
+
   if (pathExists(full)) {
-    stats.skipped.push(`${linkRelPath} (already exists)`);
+    const stat = fs.lstatSync(full);
+
+    // Already a symbolic link
+    if (stat.isSymbolicLink()) {
+      const currentTarget = fs.readlinkSync(full);
+
+      const normalizedCurrentTarget = path.normalize(currentTarget);
+      const normalizedExpectedTarget = path.normalize(symlinkTarget);
+
+      if (normalizedCurrentTarget === normalizedExpectedTarget) {
+        stats.skipped.push(`${linkRelPath} (symlink already correct)`);
+        return;
+      }
+
+      stats.errors.push(
+        `${linkRelPath}: symlink points to "${currentTarget}", expected "${symlinkTarget}"`
+      );
+      return;
+    }
+
+    // Git on Windows may materialize symlinks as plain-text files
+    // containing only the intended relative target.
+    if (stat.isFile()) {
+      const content = fs.readFileSync(full, 'utf8').trim();
+
+      if (content === symlinkTarget) {
+        fs.unlinkSync(full);
+
+        try {
+          fs.symlinkSync(symlinkTarget, full);
+          stats.linked.push(
+            `${linkRelPath} -> ${symlinkTarget} (repaired placeholder)`
+          );
+        } catch (err) {
+          stats.errors.push(`${linkRelPath}: ${err.message}`);
+        }
+
+        return;
+      }
+    }
+
+    // Protect real user/project files.
+    stats.skipped.push(`${linkRelPath} (existing non-managed file)`);
     return;
   }
+
   try {
     fs.symlinkSync(symlinkTarget, full);
     stats.linked.push(`${linkRelPath} -> ${symlinkTarget}`);
@@ -90,7 +134,8 @@ function main() {
   console.log('\n  Next steps:');
   console.log('  1. Update docs/ to match your project (stack, API, data model)');
   console.log('  2. openspec init');
-  console.log('  3. /enrich-us  ->  /ff  ->  /apply\n');
+  console.log('  3. /enrich-us -> /new -> /apply -> /verify -> /code-review -> /archive -> /commit\n'
+);
 }
 
 main();
