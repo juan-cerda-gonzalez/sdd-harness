@@ -134,8 +134,7 @@ function main() {
   console.log('\n  Next steps:');
   console.log('  1. Update docs/ to match your project (stack, API, data model)');
   console.log('  2. openspec init');
-  console.log('  3. /enrich-us -> /new -> /apply -> /verify -> /code-review -> /archive -> /commit\n'
-);
+  console.log('  3. /enrich-us -> /new -> /apply -> /verify -> /code-review -> /archive -> /commit\n');
 }
 
 main();
