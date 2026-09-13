@@ -78,7 +78,7 @@ Copy this repository into your project first, so the `docs/` and `ai-specs/` pat
 
 ```bash
 # Clone or copy this repository into your project (`-n`: do not overwrite existing files so you keep project's original README)
-cp -rn lidr-specboot/* your-project/
+cp -rn sdd-harness/* your-project/
 ```
 
 Alternative for step 2 (Claude Code users):
@@ -89,7 +89,7 @@ Alternative for step 2 (Claude Code users):
 Quick install:
 
 ```bash
-npx @lidr/lidr-specboot
+npx @sdd-harness/sdd-harness
 ```
 
 This copies all files into your project and recreates the symlink structure automatically. Safe to re-run: existing files are never overwritten.
@@ -321,9 +321,9 @@ Requirements:
 
 ## 📚 Technical context
 
-### Reference Examples (from LIDR Project)
+### Reference Examples (from sdd-harness Project)
 
-The following files are included as **reference examples** from the LIDR project. You should create your own versions tailored to your specific project:
+The following files are included as **reference examples** from the sdd-harness project. You should create your own versions tailored to your specific project:
 
 - **API Specification**: `docs/api-spec.yml` (OpenAPI 3.0 format)
   - *Create your own API spec documenting your project's endpoints*
@@ -347,13 +347,7 @@ When contributing to the standards:
 Copyright (c) 2025 juan.cerda
 Licensed under the MIT License
 
-**English:**
-
-The content of this repository is part of the AI4Devs program by juan.cerda. If you want to learn to code with AI like the pros and get more templates and resources like these, you can find all the information on the official website: [https://juan.cerda/ia-devs](https://juan.cerda/ia-devs)
-
-**Español:**
-
-El contenido de este repositorio es parte del programa AI4Devs de juan.cerda. Si quieres aprender a programar con IA como los pros, y obtener más plantillas y recursos como estos, puedes encontrar toda la información en la página oficial: [https://juan.cerda/ia-devs](https://juan.cerda/ia-devs)
+Created and maintained by juan.cerda (jua.cerda21@gmail.com).
 
 ---
 
@@ -370,6 +364,6 @@ Additional inspiration/source acknowledgements:
 
 - `code-auditing` skill: inspired by and adapted from [jeffrigby/somepulp-agents](https://github.com/jeffrigby/somepulp-agents/tree/main)
 
-**Made with 🤖 by the LIDR community**
+**Made by juan.cerda**
 
-For questions, issues, or suggestions, visit [juan.cerda](https://juan.cerda/ia-devs)
+For questions, issues, or suggestions, contact jua.cerda21@gmail.com

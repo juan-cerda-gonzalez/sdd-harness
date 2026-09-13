@@ -15,8 +15,8 @@ Ensure you have the following installed:
 ### 1. Clone the Repository
 
 ```bash
-git clone git@github.com:LIDR-academy/AI4Devs-LTI-extended.git
-cd AI4Devs-LTI-extended
+git clone <your-repository-url>
+cd <your-repository-directory>
 ```
 
 ### 2. Environment Configuration

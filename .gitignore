@@ -1,0 +1,30 @@
+# Personal Claude Code / Cursor permission caches — never shared between
+# developers, regardless of which subdirectory they were generated in.
+**/.claude/settings.local.json
+
+# Dependencies
+**/node_modules/
+
+# Build output
+**/dist/
+**/build/
+
+# Test coverage
+**/coverage/
+
+# Environment variables — never commit real secrets.
+.env
+.env.*
+!.env.example
+!**/.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# npm pack artifacts (e.g. from packages/specboot)
+*.tgz
+
+# OS files
+.DS_Store
+Thumbs.db

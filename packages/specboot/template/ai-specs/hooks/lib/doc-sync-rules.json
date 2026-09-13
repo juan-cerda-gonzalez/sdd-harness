@@ -1,0 +1,28 @@
+[
+  {
+    "label": "database schema / domain entities",
+    "sourcePatterns": [
+      "^backend/prisma/schema\\.prisma$",
+      "^backend/prisma/migrations/",
+      "^backend/src/domain/models/"
+    ],
+    "requiredDoc": "docs/data-model.md"
+  },
+  {
+    "label": "API routes / controllers",
+    "sourcePatterns": [
+      "^backend/src/presentation/",
+      "^backend/src/.*[Rr]outes?\\.ts$",
+      "^backend/src/.*[Cc]ontroller\\.ts$"
+    ],
+    "requiredDoc": "docs/api-spec.yml"
+  },
+  {
+    "label": "dependencies / install process",
+    "sourcePatterns": [
+      "^backend/package\\.json$",
+      "^backend/package-lock\\.json$"
+    ],
+    "requiredDoc": "docs/backend-standards.md"
+  }
+]

@@ -1,5 +1,5 @@
 {
-  "name": "@juan/specboot",
+  "name": "@sdd-harness/init",
   "version": "0.1.0",
   "description": "Augmented Spec-driven development powered by OpenSpec. Boot an extended version ofOpenSpec's Spec-Driven workflow in any project and give superpowers to any coding agent. ",
   "keywords": [
@@ -14,7 +14,7 @@
   "license": "MIT",
   "author": "juan cerda",
   "bin": {
-    "lidr-specboot": "./bin/init.js"
+    "sdd-harness": "bin/init.js"
   },
   "files": [
     "bin/",

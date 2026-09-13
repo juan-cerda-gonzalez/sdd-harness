@@ -1,0 +1,54 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(git commit *)",
+            "command": "node ai-specs/hooks/gate-git.js",
+            "timeout": 120,
+            "statusMessage": "Gate B: validating backend build and tests before commit..."
+          },
+          {
+            "type": "command",
+            "if": "Bash(git push *)",
+            "command": "node ai-specs/hooks/gate-git.js",
+            "timeout": 120,
+            "statusMessage": "Gate B: validating backend build and tests before push..."
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ai-specs/hooks/gate-apply.js",
+            "timeout": 30
+          },
+          {
+            "type": "command",
+            "command": "node ai-specs/hooks/gate-archive.js",
+            "timeout": 120,
+            "statusMessage": "Gate B/C: validating build, tests and review findings before archiving..."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "ReportFindings",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ai-specs/hooks/record-review-findings.js",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}

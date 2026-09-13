@@ -10,6 +10,10 @@ Example:
 
 `/archive create-auth-services`
 
+## Preconditions
+
+Apply Gate B and Gate C from `ai-specs/commands/_preconditions.md` before archiving.
+
 ## Instructions
 
 1. Confirm that a change name was provided.

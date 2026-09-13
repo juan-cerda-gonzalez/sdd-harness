@@ -1,6 +1,6 @@
 ---
-description: Frontend development standards, best practices, and conventions for the LTI React application including component patterns, state management, UI/UX guidelines, and testing practices
-globs: ["frontend/src/**/*.{js,jsx,ts,tsx}", "frontend/cypress/**/*.{ts,js}", "frontend/tsconfig.json", "frontend/cypress.config.ts", "frontend/package.json"]
+description: React frontend development standards for new and existing applications, including project initialization, component architecture, routing, state management, API integration, testing, accessibility, and UI conventions.
+globs: ["frontend/src/**/*.{js,jsx,ts,tsx}", "frontend/**/*.{json,js,ts}", "frontend/package.json"]
 alwaysApply: true
 ---
 
@@ -9,15 +9,19 @@ alwaysApply: true
 ## Table of Contents
 
 - [Overview](#overview)
+- [Project Initialization Strategy](#project-initialization-strategy)
+  - [Existing Frontend](#existing-frontend)
+  - [New Frontend](#new-frontend)
 - [Technology Stack](#technology-stack)
   - [Core Technologies](#core-technologies)
   - [UI Framework](#ui-framework)
+  - [Optional Feature Libraries](#optional-feature-libraries)
   - [State Management & Data Flow](#state-management--data-flow)
   - [Testing Framework](#testing-framework)
   - [Development Tools](#development-tools)
 - [Project Structure](#project-structure)
 - [Coding Standards](#coding-standards)
-  - [Language and Naming Conventions](#language-and-naming-conventions)
+  - [Naming Conventions](#naming-conventions)
   - [Component Conventions](#component-conventions)
   - [State Management](#state-management)
   - [Service Layer Architecture](#service-layer-architecture)
@@ -49,9 +53,48 @@ alwaysApply: true
 
 ## Overview
 
-This document outlines the best practices, conventions, and standards used in the LTI frontend application. These practices ensure code consistency, maintainability, and optimal development experience.
+This document defines the standards for React frontend development.
+
+It applies to both:
+
+- existing React applications that must be extended without unnecessary architectural changes;
+- new React applications that must be initialized from scratch when required by an approved OpenSpec change.
+
+For existing applications, preserve established project conventions unless the approved change explicitly requires a migration.
+
+For new applications, use the baseline architecture and tooling defined by this standard.
+
+## Project Initialization Strategy
+
+Before implementing a frontend change, determine whether a frontend application already exists.
+
+### Existing Frontend
+
+When an existing frontend is present:
+
+- Inspect the current project structure, package manager, dependencies, routing, styling, state management, API layer, testing, and build configuration.
+- Preserve established conventions unless the approved OpenSpec change requires otherwise.
+- Do not replace the existing build tool, router, UI framework, HTTP client, test runner, or state-management solution solely to match this standard.
+- Reuse existing components, utilities, hooks, services, and design patterns where appropriate.
+- Introduce new dependencies only when justified by the approved change.
+
+### New Frontend
+
+When no frontend application exists and the approved OpenSpec change requires one:
+
+- Initialize a React application using the baseline stack defined by this standard.
+- Use TypeScript for all application code.
+- Create the baseline project structure before implementing feature-specific code.
+- Configure routing, API integration, environment handling, linting, unit/component tests, and E2E testing when required by the approved change.
+- Ensure the initial project builds successfully before feature implementation is considered complete.
 
 ## Technology Stack
+
+The versions below define the validated baseline for new React applications.
+
+- New applications should use this baseline unless the project template is intentionally upgraded.
+- Existing applications must preserve their currently configured stack and versions unless an approved OpenSpec change explicitly requires a migration.
+- When baseline versions are updated, this document and the executable frontend scaffold/package configuration must be updated together.
 
 ### Core Technologies
 - **React 18.3.1**: Modern React with functional components and hooks
@@ -60,10 +103,28 @@ This document outlines the best practices, conventions, and standards used in th
 - **React Router DOM 6.23.1**: Client-side routing and navigation
 
 ### UI Framework
-- **Bootstrap 5.3.3**: CSS framework for responsive design
-- **React Bootstrap 2.10.2**: Bootstrap components for React
-- **React Bootstrap Icons 1.11.4**: Icon library
-- **React DatePicker 6.9.0**: Date input components
+
+Baseline for new applications:
+
+- **Bootstrap 5.3.3**: Responsive styling baseline.
+- **React Bootstrap 2.10.2**: React component integration for Bootstrap.
+- **React Bootstrap Icons 1.11.4**: Default icon library.
+
+Existing applications must use their currently configured UI framework unless migration is explicitly required.
+
+### Optional Feature Libraries
+
+Feature-specific libraries must only be added when required by the approved OpenSpec change.
+
+Examples include:
+
+- date picker libraries;
+- drag-and-drop libraries;
+- charting libraries;
+- rich text editors;
+- specialized input components.
+
+Do not include feature-specific dependencies in a new application unless they are actually required.
 
 ### State Management & Data Flow
 - **React Hooks**: useState, useEffect for local state management
@@ -84,20 +145,20 @@ This document outlines the best practices, conventions, and standards used in th
 
 ```
 frontend/
-├── public/                 # Static assets
+├── public/              # Static assets
 ├── src/
-│   ├── components/        # Reusable UI components
-│   ├── services/         # API service layer
+│   ├── components/      # Reusable UI components
+│   ├── services/        # API service layer
 │   ├── pages/           # Page components (future organization)
 │   ├── assets/          # Images, fonts, static resources
 │   ├── App.js           # Main application component
 │   ├── index.tsx        # Application entry point
 │   └── index.css        # Global styles
 ├── cypress/
-│   └── e2e/            # End-to-end test files
+│   └── e2e/             # End-to-end test files
 ├── package.json         # Dependencies and scripts
-├── tsconfig.json       # TypeScript configuration
-└── cypress.config.ts   # Cypress configuration
+├── tsconfig.json        # TypeScript configuration
+└── cypress.config.ts    # Cypress configuration
 ```
 
 ## Coding Standards
@@ -493,6 +554,8 @@ export default defineConfig({
 - **Batch API calls** when possible
 
 ## Development Workflow
+
+### Git Workflow
 
 - **Feature Branches**: Develop features in separate branches, adding descriptive suffix "-frontend" to allow working in parallel and avoid conflicts or collisions
 - **Descriptive Commits**: Write descriptive commit messages in English

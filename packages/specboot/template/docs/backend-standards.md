@@ -52,6 +52,7 @@ alwaysApply: true
 - [Testing Standards](#testing-standards)
   - [Unit Testing](#unit-testing)
   - [Integration Testing](#integration-testing)
+  - [Manual Endpoint Verification](#manual-endpoint-verification)
   - [Test Coverage Requirements](#test-coverage-requirements)
   - [Mocking Standards](#mocking-standards)
 - [Performance Best Practices](#performance-best-practices)
@@ -92,7 +93,7 @@ This document outlines the best practices, conventions, and standards used in th
 
 ### Testing Framework
 - **Jest**: Testing framework with TypeScript support
-- **Coverage Threshold**: 90% for branches, functions, lines, and statements
+- **Coverage Requirements**: See Test Coverage Requirements
 - **Test Location**: `backend/src/_test/`, mirroring the production source structure
 
 ### Development Tools
@@ -121,9 +122,10 @@ The backend follows a layered DDD architecture:
 - Controllers use services from Application layer
 
 **Application Layer** (`src/application/`)
-- Services contain business logic and orchestration
-- Validator handles input validation
-- Services use repositories from Domain layer
+- Application services orchestrate use cases.
+- Application services coordinate domain objects and repository abstractions.
+- Domain business rules belong in domain entities, value objects, or domain services when appropriate.
+- Application services must not depend directly on Prisma or infrastructure implementations.
 
 **Domain Layer** (`src/domain/`)
 - Models define core business entities (Candidate, Position, Application, Interview, etc.)
@@ -353,23 +355,14 @@ export class CandidateService {
 
 ### Additional Recommendations
 
-**Use of Factories**
+### Optional DDD Patterns
 
-Factories are useful in DDD to encapsulate the logic of creating complex objects, ensuring that all created objects comply with domain rules from the moment of creation.
+Factories, domain events, aggregates, and domain services may be introduced when they solve a concrete domain requirement.
 
-**Recommendation**: Implement factories for the creation of entities and aggregates, especially those that are complex and require specific initial configuration that complies with business rules.
-
-**Improvement in Relationship Modeling**
-
-Relationships between entities and aggregates must be clear and consistent with business rules.
-
-**Recommendation**: Review and possibly redesign relationships between entities to ensure they accurately reflect domain needs and rules. This may include removing unnecessary relationships or adding new relationships that facilitate business operations.
-
-**Domain Events Integration**
-
-Domain events are an important part of DDD and can be used to handle side effects of domain operations in a decoupled manner.
-
-**Recommendation**: Implement a domain event system that allows entities and aggregates to publish events that other system components can handle without being tightly coupled to the entities that generate them.
+- Do not introduce these patterns solely for architectural purity.
+- Prefer the simplest design that preserves domain invariants.
+- Do not redesign existing aggregate boundaries unless required by the approved OpenSpec change.
+- New architectural abstractions must have a concrete use case.
 
 ## SOLID and DRY Principles
 
@@ -554,28 +547,36 @@ class Candidate {
 
 **After:**
 ```typescript
-interface Database {
-    save(candidate: Candidate): Promise<Candidate>;
+export interface CandidateRepository {
+  save(candidate: Candidate): Promise<Candidate>;
 }
 
-class Candidate {
-    private database: Database;
-    
-    constructor(database: Database) {
-        this.database = database;
-    }
-    
-    async save(): Promise<Candidate> {
-        return await this.database.save(this);
-    }
+export class CreateCandidateService {
+  constructor(
+    private readonly candidateRepository: CandidateRepository,
+  ) {}
+
+  async execute(candidate: Candidate): Promise<Candidate> {
+    return this.candidateRepository.save(candidate);
+  }
 }
 ```
 
-**Explanation**: `Candidate` now depends on an abstraction (Database), not a concrete implementation, which facilitates flexibility and code testing.
+```typescript
+export class PrismaCandidateRepository implements CandidateRepository {
+  constructor(private readonly prisma: PrismaClient) {}
 
-**Observation**: Classes like `Candidate` directly depend on the concrete `PrismaClient` for database operations.
+  async save(candidate: Candidate): Promise<Candidate> {
+    // persistence mapping
+  }
+}
+```
 
-**Recommendation**: Use dependency injection to invert the dependency, relying on abstractions rather than concrete implementations. Inject `PrismaClient` through the constructor or a setter method.
+**Explanation**: The application service depends on the `CandidateRepository` abstraction rather than on Prisma or another persistence implementation. The domain entity remains persistence-agnostic.
+
+**Recommendation**: Depend on repository abstractions from application services. Keep Prisma-specific dependency injection and persistence mapping inside the infrastructure/composition layer.
+
+
 
 ### DRY (Don't Repeat Yourself)
 
@@ -607,24 +608,22 @@ export class Candidate {
             throw new Error('Invalid email');
         }
     }
-    
-    async save(): Promise<Candidate> {
-        this.validateEmail();
-        // save logic
+     changeEmail(newEmail: string): void {
+    // validate and update domain state
     }
-    
-    async update(): Promise<Candidate> {
-        this.validateEmail();
-        // update logic
+
+    updateProfile(): void {
+        // update domain state
     }
 }
 ```
 
-**Explanation**: Email validation is centralized in a single `validateEmail` method, eliminating code duplication in the save and update functions.
+**Explanation**: Email validation is centralized in the domain entity and reused by domain operations that modify the email, without introducing persistence responsibilities into the entity.
+
+**Recommendation**: Keep reusable business rules in the appropriate domain abstraction and keep repeated persistence logic inside infrastructure repositories.
 
 **Observation**: The methods for saving entities like `Candidate`, `Education`, `WorkExperience`, and `Resume` contain repetitive logic for handling database operations.
 
-**Recommendation**: Abstract common database operation logic into a reusable function or class.
 
 ## Coding Standards
 
@@ -917,15 +916,18 @@ Application duplicate pre-check
 
 ### Prisma Schema
 
-- **Single Source of Truth**: `prisma/schema.prisma` is the single source of truth for database structure
-- **Relationships**: Define relationships using Prisma relations
-- **Naming Conventions**: Use consistent naming conventions (camelCase for fields, PascalCase for models)
+- `prisma/schema.prisma` is the canonical application-level schema definition.
+- Versioned migrations are the authoritative history of database changes.
+- Database constructs not representable by Prisma schema must be defined and documented in version-controlled migrations.
+- Relationships representable by Prisma must be defined using Prisma relations.
+- Use consistent naming conventions.
 
 ### Migrations
 
-- **Version Control**: All database changes must be version-controlled through migrations
-- **Migration Naming**: Use descriptive names for migrations
-- **Review Migrations**: Review migration files before applying
+- All database changes must be version-controlled through migrations.
+- Use descriptive migration names.
+- Review generated and custom SQL before applying.
+- Do not use `prisma db push` as a replacement for reviewed migrations in shared or production environments.
 
 ```bash
 # Create migration
@@ -971,7 +973,7 @@ The project has strict requirements for code quality and maintainability. These 
 - Do not place tests beside production files.
 - Do not create distributed `__tests__` directories.
 - Use Jest as the testing framework with TypeScript support.
-- Maintain a 90% coverage threshold for branches, functions, lines, and statements.
+- **Coverage Requirements**: See Test Coverage Requirements.
 
 
 ### Test Organization Pattern
@@ -1064,16 +1066,12 @@ Assertion pattern:
 
 ### Test Coverage Requirements
 
-- **Comprehensive test coverage**: Include these test categories for each function:
-1. **Happy Path Tests**: Valid inputs producing expected outputs
-2. **Error Handling Tests**: Invalid inputs, missing data, database errors
-3. **Edge Cases**: Boundary values, null/undefined inputs, empty data
-4. **Validation Tests**: Input validation, business rule enforcement
-5. **Integration Points**: External service calls, database operations
-
-- **Threshold**: 90% for branches, functions, lines, and statements
-- **Coverage Reports**: Generate coverage reports with `npm run test:coverage`
-- **Coverage Files**: Coverage reports in `coverage/` directory adding the date, like YYYYMMDD-backend-coverage.md
+- **Threshold**: 90% for branches, functions, lines, and statements.
+- The threshold must be enforced by the backend test configuration.
+- Generate coverage reports with `npm run test:coverage`.
+- **Coverage Output**: Store generated coverage artifacts in the configured `coverage/` directory.
+- **Coverage Summary**: When a human-readable coverage summary is required, generate it as `coverage/YYYYMMDD-backend-coverage.md`.
+- Coverage artifacts must remain outside version control unless explicitly required.
 
 
 ### Error Testing
@@ -1120,6 +1118,29 @@ Assertion pattern:
 - **Database Testing**: Test repository implementations with database
 - **End-to-End Flow**: Test complete request flows
 
+### Manual Endpoint Verification
+
+For OpenSpec changes that create or modify backend endpoints, the implementing agent must execute the relevant endpoint verification.
+
+Verify when applicable:
+
+- GET endpoints.
+- POST endpoints, including cleanup of created data.
+- PUT/PATCH endpoints, including restoration of modified data.
+- DELETE endpoints, including recreation or restoration when required.
+- Validation failures.
+- Not-found cases.
+- Authentication and authorization failures when applicable.
+- Conflict and persistence-error scenarios when applicable.
+
+Requirements:
+
+- The agent must execute the verification itself.
+- Do not delegate mandatory endpoint verification to the user.
+- Start required local services when necessary.
+- Record relevant commands and outcomes when required by `tasks.md`.
+- Restore test data and environment state after mutating operations.
+- Do not mark the related OpenSpec task complete until required verification passes.
 
 ### Code Quality Standards
 
@@ -1271,34 +1292,32 @@ requiredEnvVars.forEach(varName => {
 
 ### Dependency Injection
 
-- **Inject Prisma Client**: Inject Prisma client via Express middleware
-- **Avoid Global State**: Avoid global state for database connections
-- **Testability**: Use dependency injection to improve testability
+- Application services must depend on repository or service abstractions rather than Prisma directly.
+- Infrastructure implementations may receive `PrismaClient` through constructor injection.
+- Controllers must depend on application services, not on Prisma.
+- Composition/bootstrap code is responsible for wiring concrete infrastructure implementations.
+- Avoid hidden global dependencies when explicit dependency injection is practical.
+
+Example:
 
 ```typescript
-// Middleware to inject Prisma client
-app.use((req: Request, res: Response, next: NextFunction) => {
-    req.prisma = prisma;
-    next();
-});
+const candidateRepository = new PrismaCandidateRepository(prisma);
+const createCandidateService = new CreateCandidateService(candidateRepository);
+const candidateController = new CandidateController(createCandidateService);
 
-// Use in controllers
-export async function getCandidate(req: Request, res: Response) {
-    const candidate = await req.prisma.candidate.findUnique({
-        where: { id: req.params.id }
-    });
-    res.json(candidate);
-}
 ```
 
 ## Development Workflow
 
 ### Git Workflow
 
-- **Feature Branches**: Develop features in separate branches, adding descriptive suffix "-backend" to allow working in parallel and avoid conflicts or collisions
-- **Descriptive Commits**: Write descriptive commit messages in English
-- **Code Review**: Code review before merging
-- **Small Branches**: Keep branches small and focused
+- **Feature Branches**: Backend implementation changes use:
+  - `feature/[ticket-id]-backend`, when a ticket ID exists.
+  - `feature/[change-name]-backend`, otherwise.
+- Branch creation must be the first implementation task when required by the OpenSpec workflow.
+- Write descriptive commit messages in English.
+- Keep branches small and focused.
+- Perform code review before merging.
 
 ### Development Scripts
 
@@ -1346,6 +1365,7 @@ Before an implementation task is marked as completed:
 21. Raw ORM or database error messages must never be returned to API clients.
 22. Concurrency scenarios must be considered for operations protected by unique constraints.
 23. New normalization and constraint-handling behavior must include unit tests.
+24. Coverage must meet the configured backend threshold when coverage verification is part of the assigned validation scope.
 
 ## Serverless Deployment
 

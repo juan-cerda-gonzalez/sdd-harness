@@ -1,5 +1,9 @@
 # Activities Management Specification
 
+## Purpose
+
+Defines the backend behavior for managing `Activity` records: listing with search and pagination, creation, renaming, soft-delete via active/inactive status toggling, and exporting the filtered result set as an Excel file. Also defines the standard error envelope shared by all activity endpoints.
+
 ## Requirements
 
 ### Requirement: List activities with search and pagination
