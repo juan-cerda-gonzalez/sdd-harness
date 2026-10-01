@@ -279,3 +279,7 @@ Because `template/` is a copy, **it does not update itself** when you change thi
 - **New shared precondition?** Add it to `ai-specs/commands/_preconditions.md` and reference it from the commands/skills that need it, rather than duplicating the check.
 - **New mechanical gate?** Follow the existing pattern in `ai-specs/hooks/`: a small, dependency-free Node script, wired via `.claude/settings.json`, with a matching `SKIP_GATE_X` escape hatch if a deliberate bypass makes sense.
 - **Changing anything under `ai-specs/`?** Keep `packages/specboot/template/` in sync manually (it's a copy, not a symlink, by design — see above). Diff `ai-specs/` against `packages/specboot/template/ai-specs/` before publishing a harness change to confirm nothing drifted.
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
